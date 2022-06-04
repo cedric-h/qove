@@ -12,7 +12,7 @@ pub fn build(b: *std.build.Builder) void {
     const mode = b.standardReleaseOptions();
 
     const exe = b.addExecutable("qove", "src/main.zig");
-    exe.strip = true;
+    // exe.strip = true;
     exe.setTarget(target);
     exe.setBuildMode(mode);
     exe.install();

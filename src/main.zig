@@ -1,60 +1,58 @@
 const std = @import("std");
-const windows = std.os.windows;
 
-const usr = windows.user32;
+extern "kernel32" fn GetFileTime(
+    hWnd: *anyopaque,
+    lpCreationTime: ?*std.os.windows.FILETIME,
+    lpLastAccessTime: ?*std.os.windows.FILETIME,
+    lpLastWriteTime: ?*std.os.windows.FILETIME,
+) c_int;
 
-pub fn panic(_: []const u8, _: ?*const std.builtin.StackTrace) noreturn {
-    std.os.exit(0);
+fn fileTimeAsUnixNs(ft: std.os.windows.FILETIME) i64 {
+    const t = @intCast(i64, @intCast(u64, ft.dwLowDateTime) | @intCast(u64, ft.dwHighDateTime) << 32);
+    return (t - 0x019db1ded53e8000) * 100;
 }
 
-export fn winproc(
-    hwnd: windows.HWND,
-    msg: windows.UINT,
-    wParam: windows.WPARAM,
-    lParam: windows.LPARAM,
-) callconv(windows.WINAPI) windows.LRESULT {
-    switch (msg) {
-        usr.WM_DESTROY => {
-            usr.PostQuitMessage(0);
-            return 0;
-        },
-        else => {},
+fn lastChangeTime() !i64 {
+    const plug = try std.fs.cwd().openFile("plug.zig", .{ .mode = .read_only });
+    defer plug.close();
+
+    var last_write: std.os.windows.FILETIME = undefined;
+    _ = GetFileTime(plug.handle, null, &last_write, null);
+    return fileTimeAsUnixNs(last_write);
+}
+
+fn run(gpa: std.mem.Allocator) !void {
+    { // build
+        const args = .{ "zig", "build-lib", "plug.zig", "-dynamic" };
+        var child = std.ChildProcess.init(&args, gpa);
+        child.stdin_behavior = .Inherit;
+        child.stdout_behavior = .Inherit;
+        child.stderr_behavior = .Inherit;
+
+        _ = try child.spawnAndWait();
     }
-    return usr.defWindowProcA(hwnd, msg, wParam, lParam); 
+
+    { // run 
+        var dynlib = try std.DynLib.open("./plug.dll");
+        defer dynlib.close();
+        dynlib.lookup(fn() void, "init").?();
+    }
 }
 
-pub export fn wWinMainCRTStartup() callconv(windows.WINAPI) noreturn {
-    const name = "Qove";
-    const instance = @ptrCast(
-        windows.HINSTANCE,
-        windows.kernel32.GetModuleHandleW(null)
-    );
-    _ = usr.registerClassExA(&std.mem.zeroInit(usr.WNDCLASSEXA,.{
-        .cbSize = @sizeOf(usr.WNDCLASSEXA),
-        .lpfnWndProc = winproc,
-        .hInstance = instance,
-        .lpszClassName = name,
-    })) catch unreachable;
+pub fn main() !void {
+    var general_purpose_allocator = std.heap.GeneralPurposeAllocator(.{}){};
+    defer std.debug.assert(!general_purpose_allocator.deinit());
+    const gpa = general_purpose_allocator.allocator();
 
-    const hwnd = usr.CreateWindowExA(
-        usr.WS_EX_APPWINDOW, name, name,
-        usr.WS_OVERLAPPEDWINDOW,
-        0, 0, 640, 480, // size
-        null, null, instance, null,
-    ) orelse unreachable;
-
-    _ = usr.ShowWindow(hwnd, usr.SW_SHOWDEFAULT);
+    var last_run = try lastChangeTime();
+    try run(gpa);
 
     while (true) {
-        var msg: usr.MSG = undefined;
-        while (usr.PeekMessageA(&msg, null, 0, 0, usr.PM_REMOVE) > 0) {
-            if (msg.message == usr.WM_QUIT)
-                std.os.exit(0);
-            _ = usr.TranslateMessage(&msg);
-            _ = usr.DispatchMessageA(&msg);
+        if (last_run < try lastChangeTime()) {
+            try run(gpa);
+            last_run = try lastChangeTime();
         }
-        windows.kernel32.Sleep(5);
-    }
 
-    std.os.exit(0);
+        std.time.sleep(std.time.ns_per_ms * 500);
+    }
 }
