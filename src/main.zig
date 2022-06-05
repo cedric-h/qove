@@ -12,6 +12,80 @@ pub fn panic(msg: []const u8, st: ?*const std.builtin.StackTrace) noreturn {
     std.os.exit(0);
 }
 
+const Vec3 = struct {
+    x: f32,
+    y: f32,
+    z: f32,
+
+    pub fn mulf(v: Vec3, f: f32) Vec3 {
+        return .{ .x = v.x * f,
+                  .y = v.y * f,
+                  .z = v.z * f };
+    }
+
+    pub fn sub(v: Vec3, o: Vec3) Vec3 {
+        return .{ .x = v.x - o.x,
+                  .y = v.y - o.y,
+                  .z = v.z - o.z };
+    }
+
+    pub fn add(v: Vec3, o: Vec3) Vec3 {
+        return .{ .x = v.x + o.x,
+                  .y = v.y + o.y,
+                  .z = v.z + o.z };
+    }
+
+    pub fn dot(v: Vec3, o: Vec3) f32 {
+        return v.x * o.x +
+               v.y * o.y +
+               v.z * o.z;
+    }
+
+    pub fn cross(v: Vec3, o: Vec3) Vec3 {
+        return .{ .x = v.y * o.z - v.z * o.y,
+                  .y = v.z * o.x - v.x * o.z,
+                  .z = v.x * o.y - v.y * o.x };
+    }
+};
+fn vec3(x: f32, y: f32, z: f32) Vec3 { return .{ .x = x, .y = y, .z = z }; }
+
+const Quad = struct {
+    pos: Vec3,
+    norm: Vec3,
+    tan: Vec3,
+    size: f32,
+};
+
+const eye: Vec3 = vec3(0, 0, -1);
+const quad: Quad = .{
+    .pos = vec3(0, 0, 0),
+    .norm = eye.mulf(-1),
+    .tan = vec3(0, 1, 0),
+    .size = 0.25,
+};
+fn colorAt(x: f32, y: f32) u32 {
+    var orig = eye.add(vec3(x, y, 0));
+    var d = -quad.norm.dot(quad.pos);
+    var dist = quad.norm.dot(orig) + d;
+
+    var projected = orig.sub(quad.norm.mulf(dist));
+
+    var u = quad.tan.dot(projected);
+    var v = quad.tan.cross(quad.norm).dot(projected);
+    u = (@fabs(u) * 2) / quad.size - 0.5;
+    v = (@fabs(v) * 2) / quad.size - 0.5;
+
+    // std.debug.print("{}, {}\n", .{ u, v });
+
+    var r = @floatToInt(u32, u * 256);
+    var g = @floatToInt(u32, v * 256);
+
+    if (u > 1 or v > 1) { r = 0; g = 0; }
+
+    var b = @floatToInt(u32, 0);
+    return (r << 16) | (g << 8) | (b << 0);
+}
+
 export fn winproc(
     hwnd: win32.everything.HWND,
     msg: windows.UINT,
@@ -158,17 +232,16 @@ pub export fn wWinMainCRTStartup() callconv(windows.WINAPI) noreturn {
             // then you won't need VirtualAlloc/VirtualFree for "pixels" pointer
             var data = @ptrCast([*]u32, @alignCast(@alignOf([*]u32), mapped.pData));
 
-            const counter = struct { var i: u32 = 0; };
-            counter.i +%= 1;
-
+            const widthf = @intToFloat(f32, width);
+            const heightf = @intToFloat(f32, height);
             var y: u32 = 0;
             while (y < height) : (y += 1) {
                 var x: u32 = 0;
                 while (x < width) : (x += 1) {
-                    var r: u32 = (counter.i + x) % 256;
-                    var g: u32 = (counter.i + y) % 256;
-                    var b: u32 = 0;
-                    data[y * mapped.RowPitch/4 + x] = (r << 16) | (g << 8) | (b << 0);
+                    data[y * mapped.RowPitch/4 + x] = colorAt(
+                        @intToFloat(f32, x) /  widthf - 0.5,
+                        @intToFloat(f32, y) / heightf  - 0.5
+                    );
                 }
             }
 
