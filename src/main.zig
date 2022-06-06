@@ -41,6 +41,10 @@ const Vec3 = struct {
                v.z * o.z;
     }
 
+    pub fn mag(v: Vec3) f32 {
+        return @sqrt(v.dot(v));
+    }
+
     pub fn cross(v: Vec3, o: Vec3) Vec3 {
         return .{ .x = v.y * o.z - v.z * o.y,
                   .y = v.z * o.x - v.x * o.z,
@@ -56,31 +60,40 @@ const Quad = struct {
     size: f32,
 };
 
-const eye: Vec3 = vec3(0, 0, -1);
-const quad: Quad = .{
-    .pos = vec3(0, 0, 0),
-    .norm = eye.mulf(-1),
+const cam = struct {
+    var pos = vec3(0, 0, 0);
+    var look = vec3(0, 0, 1);
+};
+var quad: Quad = .{
+    .pos = vec3(0, 0, 1),
+    .norm = vec3(0, 0, -1),
     .tan = vec3(0, 1, 0),
     .size = 0.25,
 };
 fn colorAt(x: f32, y: f32) u32 {
-    var orig = eye.add(vec3(x, y, 0));
-    var d = -quad.norm.dot(quad.pos);
-    var dist = quad.norm.dot(orig) + d;
+    var orig = cam.pos.add(vec3(x, y, 0));
+    
+    // get time until plane intersection
+    var d = quad.pos.dot(quad.norm.mulf(-1));
+    var t = -(d + quad.norm.dot(orig)) / quad.norm.dot(cam.look);
 
-    var projected = orig.sub(quad.norm.mulf(dist));
+    // didn't hit the plane
+    if (t < 0) return 0;
 
-    var u = quad.tan.dot(projected);
-    var v = quad.tan.cross(quad.norm).dot(projected);
-    u = (@fabs(u) * 2) / quad.size - 0.5;
-    v = (@fabs(v) * 2) / quad.size - 0.5;
+    // where the ray hits the surface 
+    var p = orig.add(cam.look.mulf(t));
 
-    // std.debug.print("{}, {}\n", .{ u, v });
+    var to_p = p.sub(quad.pos);
+    var u = quad.tan.dot(to_p);
+    var v = quad.tan.cross(quad.norm).dot(to_p);
+    u = u / quad.size + 0.5;
+    v = v / quad.size + 0.5;
 
     var r = @floatToInt(u32, u * 256);
     var g = @floatToInt(u32, v * 256);
 
-    if (u > 1 or v > 1) { r = 0; g = 0; }
+    if (u <= 0 or v <= 0) { r = 0; g = 0; }
+    if (u >= 1 or v >= 1) { r = 0; g = 0; }
 
     var b = @floatToInt(u32, 0);
     return (r << 16) | (g << 8) | (b << 0);
@@ -128,7 +141,7 @@ pub export fn wWinMainCRTStartup() callconv(windows.WINAPI) noreturn {
     const hwnd = wind.CreateWindowExA(
         .APPWINDOW, name, name,
         win32.everything.WS_OVERLAPPEDWINDOW,
-        default, default, default, default,
+        default, default, 500, 500,
         null, null, instance, null,
     );
 
@@ -228,8 +241,19 @@ pub export fn wWinMainCRTStartup() callconv(windows.WINAPI) noreturn {
 
             _ = context.?.ID3D11DeviceContext_Map(@ptrCast(*d3d11.ID3D11Resource, cpu_buffer), 0, .WRITE_DISCARD, 0, &mapped);
 
-            // you can avoid doing this loop by writing your pixels directly to this memory
-            // then you won't need VirtualAlloc/VirtualFree for "pixels" pointer
+
+            const counter = struct { var i: f32 = 0; };
+            counter.i += 0.01;
+            quad.tan.x = @sin(counter.i);
+            quad.tan.y = @cos(counter.i);
+            quad.norm.x = @cos(counter.i);
+            quad.norm.z = @sin(counter.i);
+            // quad.tan.x = quad.norm.x;
+            // quad.tan.y = quad.norm.z;
+
+            cam.look.x = @sin(@sin(counter.i*10) * 0.1);
+            cam.look.z = @cos(@sin(counter.i*10) * 0.1);
+
             var data = @ptrCast([*]u32, @alignCast(@alignOf([*]u32), mapped.pData));
 
             const widthf = @intToFloat(f32, width);
