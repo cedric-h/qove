@@ -7,9 +7,24 @@ const d3d11 = win32.graphics.direct3d11;
 const dxgi = win32.graphics.dxgi;
 const wind = win32.ui.windows_and_messaging;
 
-pub fn panic(msg: []const u8, st: ?*const std.builtin.StackTrace) noreturn {
-    std.debug.print("{s}\n{}\n", .{ msg, st });
+pub fn panic(_: []const u8, _: ?*const std.builtin.StackTrace) noreturn {
+    // std.debug.print("{s}\n{}\n", .{ msg, st });
     std.os.exit(0);
+}
+
+// never do this in real software lol
+// https://www.intel.com/content/www/us/en/developer/articles/technical/the-difference-between-x87-instructions-and-mathematical-functions.html
+fn cos(x: f32) f32 {
+    return @floatCast(f32, asm volatile ("fcos"
+        : [ret] "={st}" (-> f64)
+        : [x] "0" (x)
+    ));
+}
+fn sin(x: f32) f32 {
+    return @floatCast(f32, asm volatile ("fsin"
+        : [ret] "={st}" (-> f64)
+        : [x] "0" (x)
+    ));
 }
 
 const Vec3 = struct {
@@ -244,15 +259,15 @@ pub export fn wWinMainCRTStartup() callconv(windows.WINAPI) noreturn {
 
             const counter = struct { var i: f32 = 0; };
             counter.i += 0.01;
-            quad.tan.x = @sin(counter.i);
-            quad.tan.y = @cos(counter.i);
-            quad.norm.x = @cos(counter.i);
-            quad.norm.z = @sin(counter.i);
+            quad.tan.x = sin(counter.i);
+            quad.tan.y = cos(counter.i);
+            quad.norm.x = cos(counter.i);
+            quad.norm.z = sin(counter.i);
             // quad.tan.x = quad.norm.x;
             // quad.tan.y = quad.norm.z;
 
-            cam.look.x = @sin(@sin(counter.i*10) * 0.1);
-            cam.look.z = @cos(@sin(counter.i*10) * 0.1);
+            cam.look.x = sin(sin(counter.i*10) * 0.1);
+            cam.look.z = cos(sin(counter.i*10) * 0.1);
 
             var data = @ptrCast([*]u32, @alignCast(@alignOf([*]u32), mapped.pData));
 
@@ -283,7 +298,6 @@ pub export fn wWinMainCRTStartup() callconv(windows.WINAPI) noreturn {
         if (hr == win32.foundation.DXGI_STATUS_OCCLUDED) {
             windows.kernel32.Sleep(5);
         } else {
-            std.debug.assert(hr >= 0);
         }
     }
 
