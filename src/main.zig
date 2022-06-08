@@ -25,6 +25,7 @@ const ScanCode = enum(usize) {
     MAX,
 };
 var keysdown = std.mem.zeroes([@enumToInt(ScanCode.MAX)]bool);
+var cursor_locked = false;
 
 // never do this in real software lol
 // https://www.intel.com/content/www/us/en/developer/articles/technical/the-difference-between-x87-instructions-and-mathematical-functions.html
@@ -157,8 +158,16 @@ export fn winproc(
             usr.PostQuitMessage(0);
             return 0;
         },
-        usr.WM_INPUT => {
-            var dwSize: u32 = undefined;
+        usr.WM_LBUTTONDOWN => {
+            if (!cursor_locked) {
+                cursor_locked = true;
+                _ = win32.everything.ShowCursor(0);
+            }
+        },
+        usr.WM_INPUT => blk: {
+            if (!cursor_locked) break :blk;
+
+            var dw_size: u32 = undefined;
             var bytes: [256]u8 = undefined;
             var dest = @ptrCast(*anyopaque, &bytes);
 
@@ -166,14 +175,22 @@ export fn winproc(
             const size = @sizeOf(wpt.RAWINPUTHEADER);
 
             var raw = @intToPtr(wpt.HRAWINPUT, @intCast(usize, lParam));
-            _ = wpt.GetRawInputData(raw, wpt.RID_INPUT, null, &dwSize, size);
-            _ = wpt.GetRawInputData(raw, wpt.RID_INPUT, dest, &dwSize, size);
+            _ = wpt.GetRawInputData(raw, wpt.RID_INPUT, null, &dw_size, size);
+            _ = wpt.GetRawInputData(raw, wpt.RID_INPUT, dest, &dw_size, size);
 
             var input = @ptrCast(         *wpt.RAWINPUT,
                       @alignCast(@alignOf(*wpt.RAWINPUT), &bytes));
-            if (input.*.header.dwType == @enumToInt(wpt.RIM_TYPEMOUSE))
+            if (input.*.header.dwType == @enumToInt(wpt.RIM_TYPEMOUSE)) {
                 onMouseMove(@intToFloat(f32, input.*.data.mouse.lLastX),
                             @intToFloat(f32, input.*.data.mouse.lLastY));
+
+                var clipRect: win32.foundation.RECT = undefined;
+                _ = win32.everything.GetWindowRect(hwnd, &clipRect);
+                _ = win32.everything.SetCursorPos(
+                    @divTrunc(clipRect.left + clipRect.right, 2),
+                    @divTrunc(clipRect.top + clipRect.bottom, 2)
+                );
+            }
         },
         usr.WM_KEYUP, usr.WM_KEYDOWN => {
             if (wParam == VK_ESCAPE)

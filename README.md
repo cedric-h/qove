@@ -16,7 +16,7 @@
 [ ] nature
     [ ] grass
     [ ] flower
-    [ ] tufts (heightmaps?)
+    [ ] bluffs (heightmaps?)
     [ ] bushes
 [ ] village hut (interior) (portals?)
 [ ] clifftops
