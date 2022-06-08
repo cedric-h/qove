@@ -348,8 +348,16 @@ pub export fn wWinMainCRTStartup() callconv(windows.WINAPI) noreturn {
             quad.tan.y = cos(counter.i);
             quad.norm.x = cos(counter.i);
             quad.norm.z = sin(counter.i);
-            // quad.tan.x = quad.norm.x;
-            // quad.tan.y = quad.norm.z;
+
+            const side = cam.look.cross(vec3(0, 1, 0));
+            var mv = vec3(0, 0, 0);
+            if (keysdown[@enumToInt(ScanCode.W)]) mv = mv.add(cam.look);
+            if (keysdown[@enumToInt(ScanCode.S)]) mv = mv.add(cam.look.mulf(-1));
+            if (keysdown[@enumToInt(ScanCode.A)]) mv = mv.add(side);
+            if (keysdown[@enumToInt(ScanCode.D)]) mv = mv.add(side.mulf(-1));
+            const mvmag = mv.mag();
+            if (mvmag > 0)
+                cam.pos = cam.pos.add(mv.mulf(0.03 / mvmag));
 
             var data = @ptrCast([*]u32, @alignCast(@alignOf([*]u32), mapped.pData));
 
