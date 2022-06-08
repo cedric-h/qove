@@ -12,6 +12,20 @@ pub fn panic(_: []const u8, _: ?*const std.builtin.StackTrace) noreturn {
     std.os.exit(0);
 }
 
+// for games, scancodes > virtual keycodes because they're 
+// about a location on a keyboard, not the letter on the key
+// (not QWERTY? game still worky)
+const ScanCode = enum(usize) {
+    W = 17,
+    S = 31,
+    A = 30,
+    D = 32,
+    Shift = 42,
+    Space = 57,
+    MAX,
+};
+var keysdown = std.mem.zeroes([@enumToInt(ScanCode.MAX)]bool);
+
 // never do this in real software lol
 // https://www.intel.com/content/www/us/en/developer/articles/technical/the-difference-between-x87-instructions-and-mathematical-functions.html
 fn cos(x: f32) f32 {
@@ -114,6 +128,20 @@ fn colorAt(x: f32, y: f32) u32 {
     return (r << 16) | (g << 8) | (b << 0);
 }
 
+fn onMouseMove(x: f32, y: f32) void {
+    const rot = struct { var pitch: f32 = 0; var yaw: f32 = 0; };
+    
+    rot.pitch = @maximum(-1.57, @minimum(1.57, rot.pitch + y*0.01));
+    // rot.yaw = @mod(rot.yaw + x*0.01, 3.14);
+    rot.yaw += x*0.01;
+
+    cam.look = .{
+        .x = sin(rot.yaw) * cos(rot.pitch),
+        .y = sin(rot.pitch),
+        .z = cos(rot.yaw) * cos(rot.pitch),
+    };
+}
+
 export fn winproc(
     hwnd: win32.everything.HWND,
     msg: windows.UINT,
@@ -129,9 +157,36 @@ export fn winproc(
             usr.PostQuitMessage(0);
             return 0;
         },
-        usr.WM_KEYUP | usr.WM_KEYDOWN => {
+        usr.WM_INPUT => {
+            var dwSize: u32 = undefined;
+            var bytes: [256]u8 = undefined;
+            var dest = @ptrCast(*anyopaque, &bytes);
+
+            const wpt = win32.ui.input;
+            const size = @sizeOf(wpt.RAWINPUTHEADER);
+
+            var raw = @intToPtr(wpt.HRAWINPUT, @intCast(usize, lParam));
+            _ = wpt.GetRawInputData(raw, wpt.RID_INPUT, null, &dwSize, size);
+            _ = wpt.GetRawInputData(raw, wpt.RID_INPUT, dest, &dwSize, size);
+
+            var input = @ptrCast(         *wpt.RAWINPUT,
+                      @alignCast(@alignOf(*wpt.RAWINPUT), &bytes));
+            if (input.*.header.dwType == @enumToInt(wpt.RIM_TYPEMOUSE))
+                onMouseMove(@intToFloat(f32, input.*.data.mouse.lLastX),
+                            @intToFloat(f32, input.*.data.mouse.lLastY));
+        },
+        usr.WM_KEYUP, usr.WM_KEYDOWN => {
             if (wParam == VK_ESCAPE)
                 usr.PostQuitMessage(0);
+
+            const KF_EXTENDED = win32.everything.KF_EXTENDED;
+            const WM_KEYDOWN = win32.everything.WM_KEYDOWN;
+
+            const hiword = @intCast(usize, lParam) >> 16 & 0xFFFF;
+            var scancode = hiword & (KF_EXTENDED | 0xFF);
+            if (scancode < keysdown.len) {
+                keysdown[scancode] = msg == WM_KEYDOWN;
+            }
             return 0;
         },
         else => {},
@@ -159,6 +214,19 @@ pub export fn wWinMainCRTStartup() callconv(windows.WINAPI) noreturn {
         default, default, 500, 500,
         null, null, instance, null,
     );
+
+    { // so we can get raw mouse input
+        const wpt = win32.ui.input;
+        var device = std.mem.zeroes(wpt.RAWINPUTDEVICE);
+        device.usUsagePage = win32.everything.HID_USAGE_PAGE_GENERIC;
+        device.usUsage = win32.everything.HID_USAGE_GENERIC_MOUSE;
+        device.hwndTarget = hwnd;
+        _ = wpt.RegisterRawInputDevices(
+            @ptrCast([*]wpt.RAWINPUTDEVICE, &device),
+            1,
+            @sizeOf(wpt.RAWINPUTDEVICE)
+        );
+    }
 
     _ = wind.ShowWindow(hwnd, .SHOWDEFAULT);
 
@@ -265,9 +333,6 @@ pub export fn wWinMainCRTStartup() callconv(windows.WINAPI) noreturn {
             quad.norm.z = sin(counter.i);
             // quad.tan.x = quad.norm.x;
             // quad.tan.y = quad.norm.z;
-
-            cam.look.x = sin(sin(counter.i*10) * 0.1);
-            cam.look.z = cos(sin(counter.i*10) * 0.1);
 
             var data = @ptrCast([*]u32, @alignCast(@alignOf([*]u32), mapped.pData));
 
