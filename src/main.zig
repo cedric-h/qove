@@ -374,10 +374,11 @@ pub export fn wWinMainCRTStartup() callconv(windows.WINAPI) noreturn {
             _ = context.?.ID3D11DeviceContext_Map(@ptrCast(*d3d11.ID3D11Resource, cpu_buffer), 0, .WRITE_DISCARD, 0, &mapped);
 
 
+            var fwd = cam.look; fwd.y = 0; fwd = fwd.norm();
             const side = cam.look.cross(vec3(0, 1, 0));
             var mv = vec3(0, 0, 0);
-            if (keysdown[@enumToInt(ScanCode.W)]) mv = mv.add(cam.look);
-            if (keysdown[@enumToInt(ScanCode.S)]) mv = mv.add(cam.look.mulf(-1));
+            if (keysdown[@enumToInt(ScanCode.W)]) mv = mv.add(fwd);
+            if (keysdown[@enumToInt(ScanCode.S)]) mv = mv.add(fwd.mulf(-1));
             if (keysdown[@enumToInt(ScanCode.A)]) mv = mv.add(side);
             if (keysdown[@enumToInt(ScanCode.D)]) mv = mv.add(side.mulf(-1));
             const mvmag = mv.mag();
