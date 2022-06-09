@@ -395,7 +395,7 @@ pub export fn wWinMainCRTStartup() callconv(windows.WINAPI) noreturn {
                 while (x < width) : (x += 1) {
                     data[y * mapped.RowPitch/4 + x] = colorAt(
                         @intToFloat(f32, x) /  widthf - 0.5,
-                        @intToFloat(f32, y) / heightf  - 0.5
+                        @intToFloat(f32, y) / heightf - 0.5
                     );
                 }
             }
