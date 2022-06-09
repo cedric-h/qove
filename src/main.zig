@@ -104,11 +104,21 @@ const cam = struct {
     var pos = vec3(0, 0, 0);
     var look = vec3(0, 0, 1);
 };
-var quad: Quad = .{
-    .pos = vec3(0, 0, 1),
-    .norm = vec3(0, 0, -1),
-    .tan = vec3(0, 1, 0),
-    .size = 0.25,
+const prim = struct {
+    var quads: [2]Quad = .{
+        .{
+            .pos = vec3(0, 0, 1),
+            .norm = vec3(0, 0, -1),
+            .tan = vec3(0, 1, 0),
+            .size = 0.25,
+        },
+        .{
+            .pos = vec3(0, 0, 1.2),
+            .norm = vec3(0, 0, -1),
+            .tan = vec3(0, 1, 0),
+            .size = 0.25,
+        }
+    };
 };
 fn colorAt(x: f32, y: f32) u32 {
     const up = vec3(0, 1, 0);
@@ -120,31 +130,35 @@ fn colorAt(x: f32, y: f32) u32 {
         .add(side.mulf(x))
         .add(  up.mulf(y))
         .norm();
-    
-    // get time until plane intersection
-    const d = quad.pos.dot(quad.norm.mulf(-1));
-    const t = -(d + quad.norm.dot(orig)) / quad.norm.dot(ray);
 
-    // didn't hit the plane
-    if (t < 0) return 0;
+    var z : f32 = 1000.0;
 
-    // where the ray hits the surface 
-    const p = orig.add(ray.mulf(t));
+    var rgb: u32 = 0;
+    for (prim.quads) |quad| {
+        // get time until plane intersection
+        const d = quad.pos.dot(quad.norm.mulf(-1));
+        const qZ = -(d + quad.norm.dot(orig)) / quad.norm.dot(ray);
 
-    const to_p = p.sub(quad.pos);
-    var u = quad.tan.dot(to_p);
-    var v = quad.tan.cross(quad.norm).dot(to_p);
-    u = u / quad.size + 0.5;
-    v = v / quad.size + 0.5;
+        // where the ray hits the surface 
+        const p = orig.add(ray.mulf(qZ));
 
-    var r = @floatToInt(u32, u * 256);
-    var g = @floatToInt(u32, v * 256);
+        const to_p = p.sub(quad.pos);
+        var u = quad.tan.dot(to_p);
+        var v = quad.tan.cross(quad.norm).dot(to_p);
+        u = u / quad.size + 0.5;
+        v = v / quad.size + 0.5;
 
-    if (u <= 0 or v <= 0) { r = 0; g = 0; }
-    if (u >= 1 or v >= 1) { r = 0; g = 0; }
+        if (u <= 0 or v <= 0) continue;
+        if (u >= 1 or v >= 1) continue;
+        if (qZ > z) continue;
+        z = qZ;
 
-    var b = @floatToInt(u32, 0);
-    return (r << 16) | (g << 8) | (b << 0);
+        var r = @floatToInt(u32, u * 256);
+        var g = @floatToInt(u32, v * 256);
+        var b = @floatToInt(u32, 0);
+        rgb = (r << 16) | (g << 8) | (b << 0);
+    }
+    return rgb;
 }
 
 fn onMouseMove(x: f32, y: f32) void {
@@ -359,13 +373,6 @@ pub export fn wWinMainCRTStartup() callconv(windows.WINAPI) noreturn {
 
             _ = context.?.ID3D11DeviceContext_Map(@ptrCast(*d3d11.ID3D11Resource, cpu_buffer), 0, .WRITE_DISCARD, 0, &mapped);
 
-
-            const counter = struct { var i: f32 = 0; };
-            counter.i += 0.01;
-            quad.tan.x = sin(counter.i);
-            quad.tan.y = cos(counter.i);
-            quad.norm.x = cos(counter.i);
-            quad.norm.z = sin(counter.i);
 
             const side = cam.look.cross(vec3(0, 1, 0));
             var mv = vec3(0, 0, 0);
