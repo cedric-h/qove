@@ -52,6 +52,12 @@ const Vec3 = struct {
                   .y = v.y * f,
                   .z = v.z * f };
     }
+    
+    pub fn divf(v: Vec3, f: f32) Vec3 {
+        return .{ .x = v.x / f,
+                  .y = v.y / f,
+                  .z = v.z / f };
+    }
 
     pub fn sub(v: Vec3, o: Vec3) Vec3 {
         return .{ .x = v.x - o.x,
@@ -80,6 +86,10 @@ const Vec3 = struct {
                   .y = v.z * o.x - v.x * o.z,
                   .z = v.x * o.y - v.y * o.x };
     }
+
+    pub fn norm(v: Vec3) Vec3 {
+        return v.divf(v.mag());
+    }
 };
 fn vec3(x: f32, y: f32, z: f32) Vec3 { return .{ .x = x, .y = y, .z = z }; }
 
@@ -101,19 +111,27 @@ var quad: Quad = .{
     .size = 0.25,
 };
 fn colorAt(x: f32, y: f32) u32 {
-    var orig = cam.pos.add(vec3(x, y, 0));
+    const up = vec3(0, 1, 0);
+    const side = up.cross(cam.look);
+
+    const orig = cam.pos;
+    const ray = cam
+        .look
+        .add(side.mulf(x))
+        .add(  up.mulf(y))
+        .norm();
     
     // get time until plane intersection
-    var d = quad.pos.dot(quad.norm.mulf(-1));
-    var t = -(d + quad.norm.dot(orig)) / quad.norm.dot(cam.look);
+    const d = quad.pos.dot(quad.norm.mulf(-1));
+    const t = -(d + quad.norm.dot(orig)) / quad.norm.dot(ray);
 
     // didn't hit the plane
     if (t < 0) return 0;
 
     // where the ray hits the surface 
-    var p = orig.add(cam.look.mulf(t));
+    const p = orig.add(ray.mulf(t));
 
-    var to_p = p.sub(quad.pos);
+    const to_p = p.sub(quad.pos);
     var u = quad.tan.dot(to_p);
     var v = quad.tan.cross(quad.norm).dot(to_p);
     u = u / quad.size + 0.5;

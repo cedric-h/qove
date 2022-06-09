@@ -1,7 +1,7 @@
 
 # core
 [x] fps controls
-[ ] walking
+[x] walking
 [ ] shooty
 [ ] stack inventory
 [ ] npc dialogue
