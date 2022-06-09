@@ -8,31 +8,39 @@ Featuring a minimalist combination of low-poly primitives and 8bit pixel art, Qo
 you in a clifftop village inhabited by well-meaning -- if somewhat clueless -- characters.
 
 
-DAYS
+# DAYS UNTIL TALK
 
 THURSDAY:
 - [ ] textures
 - [ ] projectile to dodge
 - [ ] visualize hp
+
 FRIDAY:
 - [ ] hitbox to shoot
 - [ ] visualize gun + bullet
 - [ ] shooter dies
+
 SATURDAY:
 - [ ] plateau (green)
 - [ ] cliffsides (grey?)
 - [ ] npc hello world (text)
+
 SUNDAY:
 - [ ] cave
 - [ ] first quest (village -> cave, kill 3, go back)
+
 MONDAY:
 - [ ] web builds
+
 TUESDAY:
 - [ ] elevator
+
 WEDNESDAY:
 - [ ] ruins
+
 THURSDAY:
 - [ ] bridge
+
 FRIDAY:
 - [ ] give talk
 
