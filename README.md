@@ -11,73 +11,73 @@ you in a clifftop village inhabited by well-meaning -- if somewhat clueless -- c
 DAYS
 
 THURSDAY:
-    [ ] textures
-    [ ] projectile to dodge
-    [ ] visualize hp
+- [ ] textures
+- [ ] projectile to dodge
+- [ ] visualize hp
 FRIDAY:
-    [ ] hitbox to shoot
-    [ ] visualize gun + bullet
-    [ ] shooter dies
+- [ ] hitbox to shoot
+- [ ] visualize gun + bullet
+- [ ] shooter dies
 SATURDAY:
-    [ ] plateau (green)
-    [ ] cliffsides (grey?)
-    [ ] npc hello world (text)
+- [ ] plateau (green)
+- [ ] cliffsides (grey?)
+- [ ] npc hello world (text)
 SUNDAY:
-    [ ] cave
-    [ ] first quest (village -> cave, kill 3, go back)
+- [ ] cave
+- [ ] first quest (village -> cave, kill 3, go back)
 MONDAY:
-    [ ] web builds
+- [ ] web builds
 TUESDAY:
-    [ ] elevator
+- [ ] elevator
 WEDNESDAY:
-    [ ] ruins
+- [ ] ruins
 THURSDAY:
-    [ ] bridge
+- [ ] bridge
 FRIDAY:
-    [ ] give talk
+- [ ] give talk
 
 
 # engine goodies
-[ ] MUST   textures
-[ ] MUST   npc dialogue
-[ ] MUST   quests
-[ ] SHOULD stack inventory
-[ ] SHOULD particles
-[ ] SHOULD fog
-[ ] COULD  heightmaps
-[ ] COULD  portals
+- [ ] MUST   textures
+- [ ] MUST   npc dialogue
+- [ ] MUST   quests
+- [ ] SHOULD stack inventory
+- [ ] SHOULD particles
+- [ ] SHOULD fog
+- [ ] COULD  heightmaps
+- [ ] COULD  portals
 
 # gameplay
-[x] MUST   fps controls
-[x] MUST   walking
-[ ] MUST   projectile to dodge
-[ ] MUST   hitbox to shoot
-[ ] MUST   enemy dies, stops shooting
-[ ] SHOULD visualize enemy health
-[ ] SHOULD projectile sprouts into melee enemies
-[ ] SHOULD projectile can be exploded midair
+- [x] MUST   fps controls
+- [x] MUST   walking
+- [ ] MUST   projectile to dodge
+- [ ] MUST   hitbox to shoot
+- [ ] MUST   enemy dies, stops shooting
+- [ ] SHOULD visualize enemy health
+- [ ] SHOULD projectile sprouts into melee enemies
+- [ ] SHOULD projectile can be exploded midair
 
 # environment (+ narrative?)
-[ ] MUST   clifftops
-[ ] MUST   cave
-[ ] SHOULD bridge
-[ ] SHOULD village hut (exterior)
-[ ] COULD  nature
-[ ] COULD  village hut (interior) (portals?)
+- [ ] MUST   clifftops
+- [ ] MUST   cave
+- [ ] SHOULD bridge
+- [ ] SHOULD village hut (exterior)
+- [ ] COULD  nature
+- [ ] COULD  village hut (interior) (portals?)
 
 
 ---
 
 ## clifftops
-[ ] MUST   village plateau
-[ ] SHOULD huts
-[ ] SHOULD hut w/ ladder
-[ ] SHOULD elevator
-[ ] SHOULD bridge
-[ ] SHOULD ruin plateau
+- [ ] MUST   village plateau
+- [ ] SHOULD huts
+- [ ] SHOULD hut w/ ladder
+- [ ] SHOULD elevator
+- [ ] SHOULD bridge
+- [ ] SHOULD ruin plateau
 
 ## nature
-[ ] SHOULD bushes
-[ ] SHOULD flower
-[ ] COULD  grass
-[ ] COULD  bluffs (heightmaps?)
+- [ ] SHOULD bushes
+- [ ] SHOULD flower
+- [ ] COULD  grass
+- [ ] COULD  bluffs (heightmaps?)
