@@ -11,7 +11,7 @@ you in a clifftop village inhabited by well-meaning -- if somewhat clueless -- c
 # DAYS UNTIL TALK
 
 THURSDAY:
-- [ ] textures
+- [x] textures
 - [ ] projectile to dodge
 - [ ] visualize hp
 
@@ -46,7 +46,7 @@ FRIDAY:
 
 
 # engine goodies
-- [ ] MUST   textures
+- [x] MUST   textures
 - [ ] MUST   npc dialogue
 - [ ] MUST   quests
 - [ ] SHOULD stack inventory

@@ -120,6 +120,8 @@ const prim = struct {
         }
     };
 };
+var img = @ptrCast(*const [8*8][4]u16, @embedFile("../img.bin"));
+
 fn colorAt(x: f32, y: f32) u32 {
     const up = vec3(0, 1, 0);
     const side = up.cross(cam.look);
@@ -153,9 +155,11 @@ fn colorAt(x: f32, y: f32) u32 {
         if (qZ > z) continue;
         z = qZ;
 
-        var r = @floatToInt(u32, u * 256);
-        var g = @floatToInt(u32, v * 256);
-        var b = @floatToInt(u32, 0);
+        const ui = @floatToInt(usize, u * 8);
+        const vi = @floatToInt(usize, v * 8);
+        var r: u32 = img.*[ui*8 + vi][0];
+        var g: u32 = img.*[ui*8 + vi][1];
+        var b: u32 = img.*[ui*8 + vi][2];
         rgb = (r << 16) | (g << 8) | (b << 0);
     }
     return rgb;
