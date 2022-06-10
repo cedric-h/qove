@@ -20,6 +20,7 @@ pub const ScanCode = enum(usize) {
 };
 pub var keysdown = std.mem.zeroes([@enumToInt(ScanCode.MAX)]bool);
 pub var cursor_locked = false;
+pub var hp: usize = 3;
 
 const Quad = struct {
     pos: Vec3,
@@ -49,8 +50,7 @@ const prim = struct {
     };
 };
 
-var img = @ptrCast(*const [8*8][4]u16, @embedFile("../img.bin"));
-
+var    fire = @ptrCast(*const [8*8][4]u16, @embedFile("../fire.bin"));
 pub fn colorAt(x: f32, y: f32) u32 {
     const up = vec3(0, 1, 0);
     const side = up.cross(cam.look);
@@ -85,9 +85,9 @@ pub fn colorAt(x: f32, y: f32) u32 {
 
         const ui = @floatToInt(usize, u * 8);
         const vi = @floatToInt(usize, v * 8);
-        var r: u32 = img.*[ui*8 + vi][0];
-        var g: u32 = img.*[ui*8 + vi][1];
-        var b: u32 = img.*[ui*8 + vi][2];
+        var r: u32 = fire.*[ui*8 + vi][0];
+        var g: u32 = fire.*[ui*8 + vi][1];
+        var b: u32 = fire.*[ui*8 + vi][2];
 
         if (r+g+b < 15) continue;
         z = qZ; // write to "depth buffer"
@@ -111,7 +111,44 @@ pub fn onMouseMove(x: f32, y: f32) void {
     };
 }
 
+const latch = struct {
+    var caster = vec3(0, 0, 0);
+
+    var cast = vec3(0, 0, 0);
+    var start_pos = vec3(0, 0, 0);
+    var end_pos = vec3(0, 0, 0);
+
+    var until_land: u32 = 0;
+    var until_next: u32 = 0;
+};
+
 pub fn frame() void {
+    latch.until_next -|= 1;
+    latch.until_land -|= 1;
+
+    const LAND_T = 70;
+
+    if (latch.until_next == 0) {
+        latch.start_pos = latch.caster;
+        latch.end_pos = cam.pos;
+        latch.until_land = LAND_T;
+        latch.until_next = 200;
+    }
+
+    if (latch.until_land < LAND_T and latch.until_land != 0) {
+        const t = 1 - @intToFloat(f32, latch.until_land) / LAND_T;
+        latch.cast = latch.start_pos.lerp(latch.end_pos, t);
+        latch.cast.y = 0.3 * sin(t * 3.14159 * 2) - 0.3*(1-t);
+        prim.quads[0].pos = latch.cast;
+        prim.quads[0].size = 0.1;
+    }
+    prim.quads[1].pos = latch.caster;
+    prim.quads[1].size = 0.35;
+
+    if (latch.until_land == 1 and latch.cast.sub(cam.pos).mag() < 1) {
+        hp -= 1;
+    }
+
     var fwd = cam.look; fwd.y = 0; fwd = fwd.norm();
     const side = cam.look.cross(vec3(0, 1, 0));
     var mv = vec3(0, 0, 0);

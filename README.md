@@ -12,8 +12,8 @@ you in a clifftop village inhabited by well-meaning -- if somewhat clueless -- c
 
 THURSDAY:
 - [x] textures
-- [ ] projectile to dodge
-- [ ] visualize hp
+- [x] projectile to dodge
+- [x] visualize hp
 
 FRIDAY:
 - [ ] hitbox to shoot
@@ -58,7 +58,7 @@ FRIDAY:
 # gameplay
 - [x] MUST   fps controls
 - [x] MUST   walking
-- [ ] MUST   projectile to dodge
+- [x] MUST   projectile to dodge
 - [ ] MUST   hitbox to shoot
 - [ ] MUST   enemy dies, stops shooting
 - [ ] SHOULD visualize enemy health

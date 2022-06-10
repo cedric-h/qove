@@ -17,4 +17,4 @@ zig-out/
 /build-*/
 /docgen_tmp/
 
-img.bin
+*.bin

@@ -84,6 +84,9 @@ export fn winproc(
     return wind.DefWindowProcA(hwnd, msg, wParam, lParam); 
 }
 
+var  hp_full = @ptrCast(*const [8*8][4]u16, @embedFile("../hp_full.bin"));
+var hp_empty = @ptrCast(*const [8*8][4]u16, @embedFile("../hp_empty.bin"));
+
 pub export fn wWinMainCRTStartup() callconv(windows.WINAPI) noreturn {
     const name = "Qove";
     const instance = @ptrCast(
@@ -229,6 +232,24 @@ pub export fn wWinMainCRTStartup() callconv(windows.WINAPI) noreturn {
                         @intToFloat(f32, x) /  widthf - 0.5,
                         @intToFloat(f32, y) / heightf - 0.5
                     );
+                }
+            }
+            var n: usize = 0;
+            while (n < 3) : (n += 1) {
+                for (if (sim.hp > n) hp_full else hp_empty) |p, i| {
+                    const r: u32 = p[0];
+                    const g: u32 = p[1];
+                    const b: u32 = p[2];
+                    if (r+g+b < 15) continue;
+                    const rgb = (r << 16) | (g << 8) | (b << 0);
+
+                    const S = 3;
+                    const u = @intCast(u32, i % 8)*S + S + n*S*(1+8);
+                    const v = @intCast(u32, i / 8)*S + S;
+                    var q: usize = 0;
+                    while (q < S*S) : (q += 1) {
+                        data[(v+q%S) * mapped.RowPitch/4 + (u+q/S)] = rgb;
+                    }
                 }
             }
 

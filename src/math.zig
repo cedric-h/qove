@@ -61,6 +61,10 @@ pub const Vec3 = struct {
     pub fn norm(v: Vec3) Vec3 {
         return v.divf(v.mag());
     }
+
+    pub fn lerp(a: Vec3, b: Vec3, t: f32) Vec3 {
+        return a.mulf(1 - t) .add( b.mulf(t) );
+    }
 };
 pub fn vec3(x: f32, y: f32, z: f32) Vec3 { return .{ .x = x, .y = y, .z = z }; }
 

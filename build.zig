@@ -13,21 +13,30 @@ fn compileImages() !void {
     std.debug.print("{}\n", .{img.gamma});
 
     var pixels = std.mem.zeroes([8*8][4]u16);
-    for (pixels) |_, i| {
-        const x = @intCast(u32, i % 8);
-        const y = @intCast(u32, i / 8);
-        var pix = img.pix(8*8+x, 8*8+y);
-        for (pix) |p, pi| {
-            var f = @intToFloat(f32, p) / (1 << 16);
-            f = std.math.pow(f32, f, 1/img.gamma);
-            f = @minimum(1, @maximum(0, f));
-            pix[pi] = @floatToInt(u16, f * 255);
-        }
-        pixels[y*8 + x] = pix;
-    }
 
-    const file = try std.fs.cwd().createFile("img.bin", .{});
-    try file.writeAll(std.mem.sliceAsBytes(pixels[0..]));
+    const sprites = .{
+        .{     "fire", .{ 8, 8 } },
+        .{  "hp_full", .{ 6, 6 } },
+        .{ "hp_empty", .{ 4, 6 } },
+    };
+
+    inline for (sprites) |sprite| {
+        for (pixels) |_, i| {
+            const x = @intCast(u32, i % 8);
+            const y = @intCast(u32, i / 8);
+            var pix = img.pix(sprite[1][0]*8 + x, sprite[1][1]*8+y);
+            for (pix) |p, pi| {
+                var f = @intToFloat(f32, p) / (1 << 16);
+                f = std.math.pow(f32, f, 1/img.gamma);
+                f = @minimum(1, @maximum(0, f));
+                pix[pi] = @floatToInt(u16, f * 255);
+            }
+            pixels[y*8 + x] = pix;
+        }
+
+        const file = try std.fs.cwd().createFile(sprite[0] ++ ".bin", .{});
+        try file.writeAll(std.mem.sliceAsBytes(pixels[0..]));
+    }
 }
 
 pub fn build(b: *std.build.Builder) void {
