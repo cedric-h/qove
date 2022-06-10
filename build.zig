@@ -18,6 +18,7 @@ fn compileImages() !void {
         .{     "fire", .{ 8, 8 } },
         .{  "hp_full", .{ 6, 6 } },
         .{ "hp_empty", .{ 4, 6 } },
+        .{    "sword", .{ 8, 4 } },
     };
 
     inline for (sprites) |sprite| {

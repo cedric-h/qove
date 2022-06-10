@@ -68,3 +68,20 @@ pub const Vec3 = struct {
 };
 pub fn vec3(x: f32, y: f32, z: f32) Vec3 { return .{ .x = x, .y = y, .z = z }; }
 
+pub const Quat = struct {
+    xyz: Vec3,
+    w: f32,
+
+    pub fn axisAngle(axis: Vec3, angle: f32) Quat {
+        var a = angle / 2;
+        return .{ .xyz = axis.mulf(sin(a)), .w = cos(a) };
+    }
+
+    pub fn rot(q: Quat, a: Vec3) Vec3 {
+        const b = q.xyz;
+        return a
+            .mulf(q.w * q.w - b.dot(b))
+            .add(b.mulf(a.dot(b) * 2))
+            .sub(b.cross(a).mulf(q.w * 2));
+    }
+};

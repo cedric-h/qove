@@ -2,6 +2,7 @@ const std = @import("std");
 
 const Vec3 = @import("./math.zig").Vec3;
 const vec3 = @import("./math.zig").vec3;
+const Quat = @import("./math.zig").Quat;
 const sin = @import("./math.zig").sin;
 const cos = @import("./math.zig").cos;
 
@@ -24,33 +25,30 @@ pub var hp: usize = 3;
 
 const Quad = struct {
     pos: Vec3,
+    size: f32,
+    rot: Quat,
+    art: *const [8*8][4]u16,
+
+    // these get overwritten before the render
     norm: Vec3,
     tan: Vec3,
-    size: f32,
+};
+const quads = struct {
+    var data: [1 << 5]Quad = undefined;
+    var count: usize = 0;
+    fn draw(q: Quad) void {
+        data[count] = q;
+        count += 1;
+    }
 };
 
 pub const cam = struct {
     var pos = vec3(0, 0, 0);
     var look = vec3(0, 0, 1);
 };
-const prim = struct {
-    var quads: [2]Quad = .{
-        .{
-            .pos = vec3(0, 0, 1),
-            .norm = vec3(0, 0, -1),
-            .tan = vec3(0, 1, 0),
-            .size = 0.25,
-        },
-        .{
-            .pos = vec3(0, 0, 1.2),
-            .norm = vec3(0, 0, -1),
-            .tan = vec3(0, 1, 0),
-            .size = 0.25,
-        }
-    };
-};
 
-var    fire = @ptrCast(*const [8*8][4]u16, @embedFile("../fire.bin"));
+var  fire = @ptrCast(*const [8*8][4]u16, @embedFile("../fire.bin"));
+var sword = @ptrCast(*const [8*8][4]u16, @embedFile("../sword.bin"));
 pub fn colorAt(x: f32, y: f32) u32 {
     const up = vec3(0, 1, 0);
     const side = up.cross(cam.look);
@@ -65,10 +63,12 @@ pub fn colorAt(x: f32, y: f32) u32 {
     var z : f32 = 1000.0;
 
     var rgb: u32 = 0;
-    for (prim.quads) |quad| {
+    for (quads.data[0..quads.count]) |quad| {
         // get time until plane intersection
         const d = quad.pos.dot(quad.norm.mulf(-1));
         const qZ = -(d + quad.norm.dot(orig)) / quad.norm.dot(ray);
+
+        if (qZ < 0) continue;
 
         // where the ray hits the surface 
         const p = orig.add(ray.mulf(qZ));
@@ -85,9 +85,9 @@ pub fn colorAt(x: f32, y: f32) u32 {
 
         const ui = @floatToInt(usize, u * 8);
         const vi = @floatToInt(usize, v * 8);
-        var r: u32 = fire.*[ui*8 + vi][0];
-        var g: u32 = fire.*[ui*8 + vi][1];
-        var b: u32 = fire.*[ui*8 + vi][2];
+        var r: u32 = quad.art.*[ui*8 + vi][0];
+        var g: u32 = quad.art.*[ui*8 + vi][1];
+        var b: u32 = quad.art.*[ui*8 + vi][2];
 
         if (r+g+b < 15) continue;
         z = qZ; // write to "depth buffer"
@@ -123,6 +123,10 @@ const latch = struct {
 };
 
 pub fn frame() void {
+    quads.count = 0;
+
+
+    // enemy/projectile behavior
     latch.until_next -|= 1;
     latch.until_land -|= 1;
 
@@ -139,16 +143,29 @@ pub fn frame() void {
         const t = 1 - @intToFloat(f32, latch.until_land) / LAND_T;
         latch.cast = latch.start_pos.lerp(latch.end_pos, t);
         latch.cast.y = 0.3 * sin(t * 3.14159 * 2) - 0.3*(1-t);
-        prim.quads[0].pos = latch.cast;
-        prim.quads[0].size = 0.1;
+        quads.draw(.{
+            .pos = latch.cast,
+            .size = 0.1,
+            .rot = Quat.axisAngle(vec3(0, 1, 0), t * 20),
+            .art = fire,
+            .norm = undefined,
+            .tan = undefined,
+        });
     }
-    prim.quads[1].pos = latch.caster;
-    prim.quads[1].size = 0.35;
+    quads.draw(.{
+        .pos = latch.caster,
+        .size = 0.35,
+        .rot = Quat.axisAngle(vec3(0, 1, 0), 0),
+        .art = sword,
+        .norm = undefined,
+        .tan = undefined,
+    });
 
     if (latch.until_land == 1 and latch.cast.sub(cam.pos).mag() < 1) {
         hp -= 1;
     }
 
+    // controls
     var fwd = cam.look; fwd.y = 0; fwd = fwd.norm();
     const side = cam.look.cross(vec3(0, 1, 0));
     var mv = vec3(0, 0, 0);
@@ -159,4 +176,11 @@ pub fn frame() void {
     const mvmag = mv.mag();
     if (mvmag > 0)
         cam.pos = cam.pos.add(mv.mulf(0.03 / mvmag));
+
+
+    // fix up all the quads we just drew
+    for (quads.data[0..quads.count]) |*quad| {
+        quad.norm = quad.rot.rot(vec3(0, 0, 1));
+        quad.tan = quad.rot.rot(vec3(0, 1, 0));
+    }
 }
