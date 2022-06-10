@@ -153,13 +153,16 @@ fn colorAt(x: f32, y: f32) u32 {
         if (u <= 0 or v <= 0) continue;
         if (u >= 1 or v >= 1) continue;
         if (qZ > z) continue;
-        z = qZ;
 
         const ui = @floatToInt(usize, u * 8);
         const vi = @floatToInt(usize, v * 8);
         var r: u32 = img.*[ui*8 + vi][0];
         var g: u32 = img.*[ui*8 + vi][1];
         var b: u32 = img.*[ui*8 + vi][2];
+
+        if (r+g+b < 15) continue;
+        z = qZ; // write to "depth buffer"
+
         rgb = (r << 16) | (g << 8) | (b << 0);
     }
     return rgb;
