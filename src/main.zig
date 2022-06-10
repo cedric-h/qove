@@ -7,179 +7,11 @@ const d3d11 = win32.graphics.direct3d11;
 const dxgi = win32.graphics.dxgi;
 const wind = win32.ui.windows_and_messaging;
 
+const sim = @import("sim.zig");
+
 pub fn panic(_: []const u8, _: ?*const std.builtin.StackTrace) noreturn {
     // std.debug.print("{s}\n{}\n", .{ msg, st });
     std.os.exit(0);
-}
-
-// for games, scancodes > virtual keycodes because they're 
-// about a location on a keyboard, not the letter on the key
-// (not QWERTY? game still worky)
-const ScanCode = enum(usize) {
-    W = 17,
-    S = 31,
-    A = 30,
-    D = 32,
-    Shift = 42,
-    Space = 57,
-    MAX,
-};
-var keysdown = std.mem.zeroes([@enumToInt(ScanCode.MAX)]bool);
-var cursor_locked = false;
-
-// never do this in real software lol
-// https://www.intel.com/content/www/us/en/developer/articles/technical/the-difference-between-x87-instructions-and-mathematical-functions.html
-fn cos(x: f32) f32 {
-    return @floatCast(f32, asm volatile ("fcos"
-        : [ret] "={st}" (-> f64)
-        : [x] "0" (x)
-    ));
-}
-fn sin(x: f32) f32 {
-    return @floatCast(f32, asm volatile ("fsin"
-        : [ret] "={st}" (-> f64)
-        : [x] "0" (x)
-    ));
-}
-
-const Vec3 = struct {
-    x: f32,
-    y: f32,
-    z: f32,
-
-    pub fn mulf(v: Vec3, f: f32) Vec3 {
-        return .{ .x = v.x * f,
-                  .y = v.y * f,
-                  .z = v.z * f };
-    }
-    
-    pub fn divf(v: Vec3, f: f32) Vec3 {
-        return .{ .x = v.x / f,
-                  .y = v.y / f,
-                  .z = v.z / f };
-    }
-
-    pub fn sub(v: Vec3, o: Vec3) Vec3 {
-        return .{ .x = v.x - o.x,
-                  .y = v.y - o.y,
-                  .z = v.z - o.z };
-    }
-
-    pub fn add(v: Vec3, o: Vec3) Vec3 {
-        return .{ .x = v.x + o.x,
-                  .y = v.y + o.y,
-                  .z = v.z + o.z };
-    }
-
-    pub fn dot(v: Vec3, o: Vec3) f32 {
-        return v.x * o.x +
-               v.y * o.y +
-               v.z * o.z;
-    }
-
-    pub fn mag(v: Vec3) f32 {
-        return @sqrt(v.dot(v));
-    }
-
-    pub fn cross(v: Vec3, o: Vec3) Vec3 {
-        return .{ .x = v.y * o.z - v.z * o.y,
-                  .y = v.z * o.x - v.x * o.z,
-                  .z = v.x * o.y - v.y * o.x };
-    }
-
-    pub fn norm(v: Vec3) Vec3 {
-        return v.divf(v.mag());
-    }
-};
-fn vec3(x: f32, y: f32, z: f32) Vec3 { return .{ .x = x, .y = y, .z = z }; }
-
-const Quad = struct {
-    pos: Vec3,
-    norm: Vec3,
-    tan: Vec3,
-    size: f32,
-};
-
-const cam = struct {
-    var pos = vec3(0, 0, 0);
-    var look = vec3(0, 0, 1);
-};
-const prim = struct {
-    var quads: [2]Quad = .{
-        .{
-            .pos = vec3(0, 0, 1),
-            .norm = vec3(0, 0, -1),
-            .tan = vec3(0, 1, 0),
-            .size = 0.25,
-        },
-        .{
-            .pos = vec3(0, 0, 1.2),
-            .norm = vec3(0, 0, -1),
-            .tan = vec3(0, 1, 0),
-            .size = 0.25,
-        }
-    };
-};
-var img = @ptrCast(*const [8*8][4]u16, @embedFile("../img.bin"));
-
-fn colorAt(x: f32, y: f32) u32 {
-    const up = vec3(0, 1, 0);
-    const side = up.cross(cam.look);
-
-    const orig = cam.pos;
-    const ray = cam
-        .look
-        .add(side.mulf(x))
-        .add(  up.mulf(y))
-        .norm();
-
-    var z : f32 = 1000.0;
-
-    var rgb: u32 = 0;
-    for (prim.quads) |quad| {
-        // get time until plane intersection
-        const d = quad.pos.dot(quad.norm.mulf(-1));
-        const qZ = -(d + quad.norm.dot(orig)) / quad.norm.dot(ray);
-
-        // where the ray hits the surface 
-        const p = orig.add(ray.mulf(qZ));
-
-        const to_p = p.sub(quad.pos);
-        var u = quad.tan.dot(to_p);
-        var v = quad.tan.cross(quad.norm).dot(to_p);
-        u = u / quad.size + 0.5;
-        v = v / quad.size + 0.5;
-
-        if (u <= 0 or v <= 0) continue;
-        if (u >= 1 or v >= 1) continue;
-        if (qZ > z) continue;
-
-        const ui = @floatToInt(usize, u * 8);
-        const vi = @floatToInt(usize, v * 8);
-        var r: u32 = img.*[ui*8 + vi][0];
-        var g: u32 = img.*[ui*8 + vi][1];
-        var b: u32 = img.*[ui*8 + vi][2];
-
-        if (r+g+b < 15) continue;
-        z = qZ; // write to "depth buffer"
-
-        rgb = (r << 16) | (g << 8) | (b << 0);
-    }
-    return rgb;
-}
-
-fn onMouseMove(x: f32, y: f32) void {
-    const rot = struct { var pitch: f32 = 0; var yaw: f32 = 0; };
-    
-    rot.pitch = @maximum(-1.57, @minimum(1.57, rot.pitch + y*0.01));
-    // rot.yaw = @mod(rot.yaw + x*0.01, 3.14);
-    rot.yaw += x*0.01;
-
-    cam.look = .{
-        .x = sin(rot.yaw) * cos(rot.pitch),
-        .y = sin(rot.pitch),
-        .z = cos(rot.yaw) * cos(rot.pitch),
-    };
 }
 
 export fn winproc(
@@ -198,13 +30,13 @@ export fn winproc(
             return 0;
         },
         usr.WM_LBUTTONDOWN => {
-            if (!cursor_locked) {
-                cursor_locked = true;
+            if (!sim.cursor_locked) {
+                sim.cursor_locked = true;
                 _ = win32.everything.ShowCursor(0);
             }
         },
         usr.WM_INPUT => blk: {
-            if (!cursor_locked) break :blk;
+            if (!sim.cursor_locked) break :blk;
 
             var dw_size: u32 = undefined;
             var bytes: [256]u8 = undefined;
@@ -220,8 +52,10 @@ export fn winproc(
             var input = @ptrCast(         *wpt.RAWINPUT,
                       @alignCast(@alignOf(*wpt.RAWINPUT), &bytes));
             if (input.*.header.dwType == @enumToInt(wpt.RIM_TYPEMOUSE)) {
-                onMouseMove(@intToFloat(f32, input.*.data.mouse.lLastX),
-                            @intToFloat(f32, input.*.data.mouse.lLastY));
+                sim.onMouseMove(
+                    @intToFloat(f32, input.*.data.mouse.lLastX),
+                    @intToFloat(f32, input.*.data.mouse.lLastY)
+                );
 
                 var clipRect: win32.foundation.RECT = undefined;
                 _ = win32.everything.GetWindowRect(hwnd, &clipRect);
@@ -240,8 +74,8 @@ export fn winproc(
 
             const hiword = @intCast(usize, lParam) >> 16 & 0xFFFF;
             var scancode = hiword & (KF_EXTENDED | 0xFF);
-            if (scancode < keysdown.len) {
-                keysdown[scancode] = msg == WM_KEYDOWN;
+            if (scancode < sim.keysdown.len) {
+                sim.keysdown[scancode] = msg == WM_KEYDOWN;
             }
             return 0;
         },
@@ -381,16 +215,7 @@ pub export fn wWinMainCRTStartup() callconv(windows.WINAPI) noreturn {
             _ = context.?.ID3D11DeviceContext_Map(@ptrCast(*d3d11.ID3D11Resource, cpu_buffer), 0, .WRITE_DISCARD, 0, &mapped);
 
 
-            var fwd = cam.look; fwd.y = 0; fwd = fwd.norm();
-            const side = cam.look.cross(vec3(0, 1, 0));
-            var mv = vec3(0, 0, 0);
-            if (keysdown[@enumToInt(ScanCode.W)]) mv = mv.add(fwd);
-            if (keysdown[@enumToInt(ScanCode.S)]) mv = mv.add(fwd.mulf(-1));
-            if (keysdown[@enumToInt(ScanCode.A)]) mv = mv.add(side);
-            if (keysdown[@enumToInt(ScanCode.D)]) mv = mv.add(side.mulf(-1));
-            const mvmag = mv.mag();
-            if (mvmag > 0)
-                cam.pos = cam.pos.add(mv.mulf(0.03 / mvmag));
+            sim.frame();
 
             var data = @ptrCast([*]u32, @alignCast(@alignOf([*]u32), mapped.pData));
 
@@ -400,7 +225,7 @@ pub export fn wWinMainCRTStartup() callconv(windows.WINAPI) noreturn {
             while (y < height) : (y += 1) {
                 var x: u32 = 0;
                 while (x < width) : (x += 1) {
-                    data[y * mapped.RowPitch/4 + x] = colorAt(
+                    data[y * mapped.RowPitch/4 + x] = sim.colorAt(
                         @intToFloat(f32, x) /  widthf - 0.5,
                         @intToFloat(f32, y) / heightf - 0.5
                     );
