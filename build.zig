@@ -10,11 +10,20 @@ fn compileImages() !void {
     const img = try png.Image.read(ally, ss.reader());
     defer img.deinit(ally);
 
+    std.debug.print("{}\n", .{img.gamma});
+
     var pixels = std.mem.zeroes([8*8][4]u16);
     for (pixels) |_, i| {
         const x = @intCast(u32, i % 8);
         const y = @intCast(u32, i / 8);
-        pixels[y*8 + x] = img.pix(9*8+x, y);
+        var pix = img.pix(8*8+x, 8*8+y);
+        for (pix) |p, pi| {
+            var f = @intToFloat(f32, p) / (1 << 16);
+            f = std.math.pow(f32, f, 1/img.gamma);
+            f = @minimum(1, @maximum(0, f));
+            pix[pi] = @floatToInt(u16, f * 255);
+        }
+        pixels[y*8 + x] = pix;
     }
 
     const file = try std.fs.cwd().createFile("img.bin", .{});
