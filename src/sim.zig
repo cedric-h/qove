@@ -29,50 +29,61 @@ var  hp_full = @ptrCast(*const [8*8][4]u16, @embedFile("../hp_full.bin"));
 var hp_empty = @ptrCast(*const [8*8][4]u16, @embedFile("../hp_empty.bin"));
 
 pub fn draw(data: []u32, width: u32, height: u32, row_pitch: usize) void {
-    _ = height;
-    _ = width;
-    // const widthf = @intToFloat(f32, width);
-    // const heightf = @intToFloat(f32, height);
+    const widthf = @intToFloat(f32, width);
+    const heightf = @intToFloat(f32, height);
 
-    var n: usize = 0;
-    while (n < 3) : (n += 1) {
-        for (if (hp > n) hp_full else hp_empty) |p, i| {
-            const r: u32 = p[0];
-            const g: u32 = p[1];
-            const b: u32 = p[2];
-            if (r+g+b < 15) continue;
-            const rgb = (r << 16) | (g << 8) | (b << 0);
+    // var n: usize = 0;
+    // while (n < 3) : (n += 1) {
+    //     for (if (hp > n) hp_full else hp_empty) |p, i| {
+    //         const r: u32 = p[0];
+    //         const g: u32 = p[1];
+    //         const b: u32 = p[2];
+    //         if (r+g+b < 15) continue;
+    //         const rgb = (r << 16) | (g << 8) | (b << 0);
 
-            const S = 3;
-            const u = @intCast(u32, i % 8)*S + S + n*S*(1+8);
-            const v = @intCast(u32, i / 8)*S + S;
-            var q: usize = 0;
-            while (q < S*S) : (q += 1) {
-                data[(v+q%S) * row_pitch + (u+q/S)] = rgb;
-            }
-        }
+    //         const S = 3;
+    //         const u = @intCast(u32, i % 8)*S + S + n*S*(1+8);
+    //         const v = @intCast(u32, i / 8)*S + S;
+    //         var q: usize = 0;
+    //         while (q < S*S) : (q += 1) {
+    //             data[(v+q%S) * row_pitch + (u+q/S)] = rgb;
+    //         }
+    //     }
+    // }
+
+    var i: f32 = 0;
+    while (i < 100) : (i += 1) {
+        const r = i/100 * std.math.tau;
+        const worldp = vec3(cos(r), 0.3*sin(i*0.2), sin(r));
+
+        if (cam.pos.sub(worldp).dot(cam.look()) < 0) continue;
+        var point = cam.q.conj().rot(worldp);
+
+        point = point.add(vec3(0.5, 0.5, 0));
+        const px = @floatToInt(usize,  widthf * point.x);
+        const py = @floatToInt(usize, heightf * point.y);
+        if (px > (width-2)) continue;
+        if (py > (height-2)) continue;
+
+        data[(py+0) * row_pitch + (px+0)] = (0<<16) | (255<<8) | (128<<0);
+        data[(py-1) * row_pitch + (px-1)] = (0<<16) | (255<<8) | (128<<0);
+        data[(py+1) * row_pitch + (px-1)] = (0<<16) | (255<<8) | (128<<0);
+        data[(py-1) * row_pitch + (px+1)] = (0<<16) | (255<<8) | (128<<0);
+        data[(py+1) * row_pitch + (px+1)] = (0<<16) | (255<<8) | (128<<0);
     }
-
-    // return (r << 16) | (g << 8) | (b << 0);
 }
 
 pub const cam = struct {
-    var pos = vec3(0, 0, -1);
-    var look = vec3(0, 0, 1);
+    var pos = vec3(0, 0, 0);
+    var q = Quat.IDENTITY;
+    fn look() Vec3 { return q.rot(vec3(0, 0, 1)); }
 };
 
 pub fn onMouseMove(x: f32, y: f32) void {
-    const rot = struct { var pitch: f32 = 0; var yaw: f32 = 0; };
-    
-    rot.pitch = @maximum(-1.57, @minimum(1.57, rot.pitch + y*0.01));
-    // rot.yaw = @mod(rot.yaw + x*0.01, std.math.pi);
-    rot.yaw += x*0.01;
+    const q_pitch = Quat.axisAngle(vec3(-1, 0, 0), y * 0.01);
+    const q_yaw = Quat.axisAngle(vec3(0, 1, 0), x * 0.01);
 
-    cam.look = .{
-        .x = sin(rot.yaw) * cos(rot.pitch),
-        .y = sin(rot.pitch),
-        .z = cos(rot.yaw) * cos(rot.pitch),
-    };
+    cam.q = q_pitch.mul(cam.q.mul(q_yaw));
 }
 
 pub fn frame() void {

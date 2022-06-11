@@ -216,7 +216,12 @@ pub export fn wWinMainCRTStartup() callconv(windows.WINAPI) noreturn {
 
             sim.frame();
 
-            var data = @ptrCast([*]u32, @alignCast(@alignOf([*]u32), mapped.pData))[0..mapped.RowPitch*height];
+            const size = mapped.RowPitch*height;
+            var data = @ptrCast(
+                [*]u32,
+                @alignCast(@alignOf([*]u32), mapped.pData)
+            )[0..size];
+            @memset(std.mem.sliceAsBytes(data).ptr, 0, size);
 
             sim.draw(data, width, height, mapped.RowPitch/4);
 

@@ -72,6 +72,12 @@ pub const Quat = struct {
     xyz: Vec3,
     w: f32,
 
+    pub const IDENTITY: Quat = .{ .xyz = vec3(0, 0, 0), .w = 1 };
+
+    pub fn conj(v: Quat) Quat {
+        return .{ .xyz = v.xyz.mulf(-1), .w = v.w };
+    }
+
     pub fn axisAngle(axis: Vec3, angle: f32) Quat {
         var a = angle / 2;
         return .{ .xyz = axis.mulf(sin(a)), .w = cos(a) };
@@ -83,5 +89,24 @@ pub const Quat = struct {
             .mulf(q.w * q.w - b.dot(b))
             .add(b.mulf(a.dot(b) * 2))
             .sub(b.cross(a).mulf(q.w * 2));
+    }
+
+    pub fn mul(a: Quat, b: Quat) Quat {
+        const x0 = a.xyz.x;
+        const y0 = a.xyz.y;
+        const z0 = a.xyz.z;
+        const w0 = a.w;
+        const x1 = b.xyz.x;
+        const y1 = b.xyz.y;
+        const z1 = b.xyz.z;
+        const w1 = b.w;
+        return .{
+            .xyz = vec3(
+                w0 * x1 + x0 * w1 + y0 * z1 - z0 * y1,
+                w0 * y1 - x0 * z1 + y0 * w1 + z0 * x1,
+                w0 * z1 + x0 * y1 - y0 * x1 + z0 * w1,
+            ),
+            .w = w0 * w1 - x0 * x1 - y0 * y1 - z0 * z1,
+        };
     }
 };
