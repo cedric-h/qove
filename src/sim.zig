@@ -51,17 +51,23 @@ pub fn draw(data: []u32, width: u32, height: u32, row_pitch: usize) void {
     //     }
     // }
 
-    var i: f32 = 0;
-    while (i < 100) : (i += 1) {
-        const r = i/100 * std.math.tau;
-        const worldp = vec3(cos(r), 0.3*sin(i*0.2), sin(r));
+    for ([_]Vec3{
+        vec3(-0.15, -0.15, -1),
+        vec3( 0.15, -0.15, -1),
+        vec3( 0.15,  0.15, -1),
+        vec3(-0.15,  0.15, -1),
+    }) |worldp| {
+        if (cam.pos.sub(worldp).dot(cam.look()) > 0) continue;
+        const delta = worldp.sub(cam.pos);
+        const dmag = delta.mag();
+        var point = cam.q.conj().rot(delta);
 
-        if (cam.pos.sub(worldp).dot(cam.look()) < 0) continue;
-        var point = cam.q.conj().rot(worldp);
+        point.x = point.x / dmag;
+        point.y = point.y / dmag;
 
         point = point.add(vec3(0.5, 0.5, 0));
-        const px = @floatToInt(usize,  widthf * point.x);
-        const py = @floatToInt(usize, heightf * point.y);
+        var px = @floatToInt(usize,  widthf * point.x);
+        var py = @floatToInt(usize, heightf * point.y);
         if (px > (width-2)) continue;
         if (py > (height-2)) continue;
 
@@ -76,7 +82,7 @@ pub fn draw(data: []u32, width: u32, height: u32, row_pitch: usize) void {
 pub const cam = struct {
     var pos = vec3(0, 0, 0);
     var q = Quat.IDENTITY;
-    fn look() Vec3 { return q.rot(vec3(0, 0, 1)); }
+    fn look() Vec3 { return q.rot(vec3(0, 0, -1)); }
 };
 
 pub fn onMouseMove(x: f32, y: f32) void {
@@ -89,14 +95,16 @@ pub fn onMouseMove(x: f32, y: f32) void {
 pub fn frame() void {
 
     // controls
-    // var fwd = cam.look; fwd.y = 0; fwd = fwd.norm();
-    // const side = cam.look.cross(vec3(0, 1, 0));
-    // var mv = vec3(0, 0, 0);
-    // if (keysdown[@enumToInt(ScanCode.W)]) mv = mv.add(fwd);
-    // if (keysdown[@enumToInt(ScanCode.S)]) mv = mv.add(fwd.mulf(-1));
-    // if (keysdown[@enumToInt(ScanCode.A)]) mv = mv.add(side);
-    // if (keysdown[@enumToInt(ScanCode.D)]) mv = mv.add(side.mulf(-1));
-    // const mvmag = mv.mag();
-    // if (mvmag > 0)
-    //     cam.pos = cam.pos.add(mv.mulf(0.03 / mvmag));
+    var fwd = cam.look(); fwd.y = 0; fwd = fwd.norm();
+    const side = fwd.cross(vec3(0, -1, 0));
+    var mv = vec3(0, 0, 0);
+    if (keysdown[@enumToInt(ScanCode.W)]) mv = mv.add(fwd);
+    if (keysdown[@enumToInt(ScanCode.S)]) mv = mv.add(fwd.mulf(-1));
+    if (keysdown[@enumToInt(ScanCode.A)]) mv = mv.add(side);
+    if (keysdown[@enumToInt(ScanCode.D)]) mv = mv.add(side.mulf(-1));
+    if (keysdown[@enumToInt(ScanCode.Shift)]) cam.pos.y += 0.03;
+    if (keysdown[@enumToInt(ScanCode.Space)]) cam.pos.y -= 0.03;
+    const mvmag = mv.mag();
+    if (mvmag > 0)
+        cam.pos = cam.pos.add(mv.mulf(0.03 / mvmag));
 }
