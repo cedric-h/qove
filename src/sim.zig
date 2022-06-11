@@ -43,22 +43,24 @@ const quads = struct {
 };
 
 pub const cam = struct {
-    var pos = vec3(0, 0, 0);
+    var pos = vec3(0, 0, -1);
     var look = vec3(0, 0, 1);
 };
 
 var  fire = @ptrCast(*const [8*8][4]u16, @embedFile("../fire.bin"));
 var sword = @ptrCast(*const [8*8][4]u16, @embedFile("../sword.bin"));
 pub fn colorAt(x: f32, y: f32) u32 {
-    const up = vec3(0, 1, 0);
-    const side = up.cross(cam.look);
-
     const orig = cam.pos;
-    const ray = cam
-        .look
-        .add(side.mulf(x))
-        .add(  up.mulf(y))
-        .norm();
+    const ray = ray: {
+        const u = vec3(0, 1, 0).cross(cam.look).norm();
+        const v = cam.look.cross(u).norm();
+
+        break :ray cam
+            .look
+            .add(u.mulf(x))
+            .add(v.mulf(y))
+            .norm();
+    };
 
     var z : f32 = 1000.0;
 
@@ -100,8 +102,8 @@ pub fn colorAt(x: f32, y: f32) u32 {
 pub fn onMouseMove(x: f32, y: f32) void {
     const rot = struct { var pitch: f32 = 0; var yaw: f32 = 0; };
     
-    rot.pitch = @maximum(-1.57, @minimum(1.57, rot.pitch + y*0.01));
-    // rot.yaw = @mod(rot.yaw + x*0.01, 3.14);
+    rot.pitch = @maximum(-1.27, @minimum(1.27, rot.pitch + y*0.01));
+    // rot.yaw = @mod(rot.yaw + x*0.01, std.math.pi);
     rot.yaw += x*0.01;
 
     cam.look = .{
@@ -142,7 +144,7 @@ pub fn frame() void {
     if (latch.until_land < LAND_T and latch.until_land != 0) {
         const t = 1 - @intToFloat(f32, latch.until_land) / LAND_T;
         latch.cast = latch.start_pos.lerp(latch.end_pos, t);
-        latch.cast.y = 0.3 * sin(t * 3.14159 * 2) - 0.3*(1-t);
+        latch.cast.y = 0.3 * sin(t * std.math.tau) - 0.3*(1-t);
         quads.draw(.{
             .pos = latch.cast,
             .size = 0.1,
@@ -152,14 +154,18 @@ pub fn frame() void {
             .tan = undefined,
         });
     }
-    quads.draw(.{
-        .pos = latch.caster,
-        .size = 0.35,
-        .rot = Quat.axisAngle(vec3(0, 1, 0), 0),
-        .art = sword,
-        .norm = undefined,
-        .tan = undefined,
-    });
+
+    var i: f32 = 0;
+    while (i < 10) : (i += 1) {
+        quads.draw(.{
+            .pos = latch.caster.add(vec3(0, i-4, 0)),
+            .size = 0.35,
+            .rot = Quat.axisAngle(vec3(0, 1, 0), 0),
+            .art = sword,
+            .norm = undefined,
+            .tan = undefined,
+        });
+    }
 
     if (latch.until_land == 1 and latch.cast.sub(cam.pos).mag() < 1) {
         hp -= 1;
@@ -183,4 +189,21 @@ pub fn frame() void {
         quad.norm = quad.rot.rot(vec3(0, 0, 1));
         quad.tan = quad.rot.rot(vec3(0, 1, 0));
     }
+
+    const u = vec3(0, 1, 0).cross(cam.look);
+    const v = cam.look.cross(u);
+    const q = Quat.axisAngle(v, -1.2);
+    quads.draw(.{
+        .pos = cam.pos.add(
+            cam
+                .look
+                .add(u.mulf(0.4))
+                .add(v.mulf(0.4))
+        ),
+        .size = 0.15,
+        .rot = undefined,
+        .art = sword,
+        .norm = q.rot(cam.look),
+        .tan = q.rot(v),
+    });
 }
