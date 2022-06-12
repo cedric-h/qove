@@ -223,7 +223,12 @@ pub export fn wWinMainCRTStartup() callconv(windows.WINAPI) noreturn {
             )[0..size];
             @memset(std.mem.sliceAsBytes(data).ptr, 0, size);
 
-            sim.draw(data, width, height, mapped.RowPitch/4);
+            sim.draw(.{
+                .data   = data,
+                .width  = width,
+                .height = height,
+                .row_pitch = mapped.RowPitch/4
+            });
 
             context.?.ID3D11DeviceContext_Unmap(@ptrCast(*d3d11.ID3D11Resource, cpu_buffer), 0);
             context.?.ID3D11DeviceContext_CopyResource(

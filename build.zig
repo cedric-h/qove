@@ -12,7 +12,7 @@ fn compileImages() !void {
 
     std.debug.print("{}\n", .{img.gamma});
 
-    var pixels = std.mem.zeroes([8*8][4]u16);
+    var pixels = std.mem.zeroes([8*8][3]u8);
 
     const sprites = .{
         .{     "fire", .{ 8, 8 } },
@@ -26,13 +26,12 @@ fn compileImages() !void {
             const x = @intCast(u32, i % 8);
             const y = @intCast(u32, i / 8);
             var pix = img.pix(sprite[1][0]*8 + x, sprite[1][1]*8+y);
-            for (pix) |p, pi| {
+            for (pix[0..3]) |p, pi| {
                 var f = @intToFloat(f32, p) / (1 << 16);
                 f = std.math.pow(f32, f, 1/img.gamma);
                 f = @minimum(1, @maximum(0, f));
-                pix[pi] = @floatToInt(u16, f * 255);
+                pixels[y*8 + x][pi] = @floatToInt(u8, f * 255);
             }
-            pixels[y*8 + x] = pix;
         }
 
         const file = try std.fs.cwd().createFile(sprite[0] ++ ".bin", .{});

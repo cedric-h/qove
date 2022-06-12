@@ -23,15 +23,31 @@ pub var keysdown = std.mem.zeroes([@enumToInt(ScanCode.MAX)]bool);
 pub var cursor_locked = false;
 var hp: usize = 3;
 
-// var  fire = @ptrCast(*const [8*8][4]u16, @embedFile("../fire.bin"));
-// var sword = @ptrCast(*const [8*8][4]u16, @embedFile("../sword.bin"));
-var  hp_full = @ptrCast(*const [8*8][4]u16, @embedFile("../hp_full.bin"));
-var hp_empty = @ptrCast(*const [8*8][4]u16, @embedFile("../hp_empty.bin"));
+var     fire = @ptrCast(*const [8*8][3]u8, @embedFile("../fire.bin"));
+var    sword = @ptrCast(*const [8*8][3]u8, @embedFile("../sword.bin"));
+var  hp_full = @ptrCast(*const [8*8][3]u8, @embedFile("../hp_full.bin"));
+var hp_empty = @ptrCast(*const [8*8][3]u8, @embedFile("../hp_empty.bin"));
 
-pub fn draw(data: []u32, width: u32, height: u32, row_pitch: usize) void {
-    const widthf = @intToFloat(f32, width);
-    const heightf = @intToFloat(f32, height);
+pub const Pixels = struct {
+    width: u32,
+    height: u32,
+    data: []u32,
+    row_pitch: usize,
 
+    fn plot(pix: Pixels, xy: [2]usize, rgb: [3]u8) void {
+        if (xy[0] > (pix.width-1)) return;
+        if (xy[1] > (pix.height-1)) return;
+
+        const r: u32 = rgb[0];
+        const g: u32 = rgb[1];
+        const b: u32 = rgb[2];
+
+        pix.data[xy[1]*pix.row_pitch + xy[0]] = (r<<16) | (g<<8) | (b<<0);
+    }
+};
+
+
+pub fn draw(pix: Pixels) void {
     // var n: usize = 0;
     // while (n < 3) : (n += 1) {
     //     for (if (hp > n) hp_full else hp_empty) |p, i| {
@@ -51,31 +67,39 @@ pub fn draw(data: []u32, width: u32, height: u32, row_pitch: usize) void {
     //     }
     // }
 
-    for ([_]Vec3{
-        vec3(-0.15, -0.15, -1),
-        vec3( 0.15, -0.15, -1),
-        vec3( 0.15,  0.15, -1),
-        vec3(-0.15,  0.15, -1),
-    }) |worldp| {
-        if (cam.pos.sub(worldp).dot(cam.look()) > 0) continue;
+    const widthf = @intToFloat(f32, pix.width);
+    const heightf = @intToFloat(f32, pix.height);
+    const aspect = widthf/heightf;
+
+    for (sword) |pixel, i| {
+        if (pixel[0]+pixel[1]+pixel[2] < 15) continue;
+
+        const x = 1 - @intToFloat(f32, i % 8) / 8 * 2;
+        const y = 1 - @intToFloat(f32, i / 8) / 8 * 2;
+        const worldp = vec3(x*0.15, y*0.15, -1);
+
         const delta = worldp.sub(cam.pos);
         const dmag = delta.mag();
-        var point = cam.q.conj().rot(delta);
 
+        if (delta.dot(cam.look()) < 0) continue;
+
+        var point = cam.q.conj().rot(delta);
         point.x = point.x / dmag;
         point.y = point.y / dmag;
 
         point = point.add(vec3(0.5, 0.5, 0));
-        var px = @floatToInt(usize,  widthf * point.x);
-        var py = @floatToInt(usize, heightf * point.y);
-        if (px > (width-2)) continue;
-        if (py > (height-2)) continue;
+        const px = @floatToInt(usize,           widthf *      point.x);
+        const py = @floatToInt(usize, aspect * heightf * (1 - point.y));
 
-        data[(py+0) * row_pitch + (px+0)] = (0<<16) | (255<<8) | (128<<0);
-        data[(py-1) * row_pitch + (px-1)] = (0<<16) | (255<<8) | (128<<0);
-        data[(py+1) * row_pitch + (px-1)] = (0<<16) | (255<<8) | (128<<0);
-        data[(py-1) * row_pitch + (px+1)] = (0<<16) | (255<<8) | (128<<0);
-        data[(py+1) * row_pitch + (px+1)] = (0<<16) | (255<<8) | (128<<0);
+        const size = @floatToInt(usize, 17/dmag);
+        var oy: usize = 0;
+        while (oy < size) : (oy += 1) {
+            var ox: usize = 0;
+            while (ox < size) : (ox += 1) {
+                // if (ox%2 ^ oy%2 > 0) continue;
+                pix.plot(.{ px+size/2-ox, py+size/2-oy }, pixel);
+            }
+        }
     }
 }
 
@@ -86,7 +110,7 @@ pub const cam = struct {
 };
 
 pub fn onMouseMove(x: f32, y: f32) void {
-    const q_pitch = Quat.axisAngle(vec3(-1, 0, 0), y * 0.01);
+    const q_pitch = Quat.axisAngle(vec3(1, 0, 0), y * 0.01);
     const q_yaw = Quat.axisAngle(vec3(0, 1, 0), x * 0.01);
 
     cam.q = q_pitch.mul(cam.q.mul(q_yaw));
@@ -102,8 +126,8 @@ pub fn frame() void {
     if (keysdown[@enumToInt(ScanCode.S)]) mv = mv.add(fwd.mulf(-1));
     if (keysdown[@enumToInt(ScanCode.A)]) mv = mv.add(side);
     if (keysdown[@enumToInt(ScanCode.D)]) mv = mv.add(side.mulf(-1));
-    if (keysdown[@enumToInt(ScanCode.Shift)]) cam.pos.y += 0.03;
-    if (keysdown[@enumToInt(ScanCode.Space)]) cam.pos.y -= 0.03;
+    if (keysdown[@enumToInt(ScanCode.Shift)]) cam.pos.y -= 0.03;
+    if (keysdown[@enumToInt(ScanCode.Space)]) cam.pos.y += 0.03;
     const mvmag = mv.mag();
     if (mvmag > 0)
         cam.pos = cam.pos.add(mv.mulf(0.03 / mvmag));
