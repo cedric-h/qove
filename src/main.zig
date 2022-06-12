@@ -9,10 +9,10 @@ const wind = win32.ui.windows_and_messaging;
 
 const sim = @import("sim.zig");
 
-pub fn panic(_: []const u8, _: ?*const std.builtin.StackTrace) noreturn {
-    // std.debug.print("{s}\n{}\n", .{ msg, st });
-    std.os.exit(0);
-}
+// pub fn panic(msg: []const u8, st: ?*const std.builtin.StackTrace) noreturn {
+//     std.debug.print("PANIC:\n  {s}\n  {}\n", .{ msg, st });
+//     std.os.exit(0);
+// }
 
 export fn winproc(
     hwnd: win32.everything.HWND,
@@ -34,6 +34,7 @@ export fn winproc(
                 sim.cursor_locked = true;
                 _ = win32.everything.ShowCursor(0);
             }
+            else sim.onMouseDown();
         },
         usr.WM_INPUT => blk: {
             if (!sim.cursor_locked) break :blk;

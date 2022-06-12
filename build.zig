@@ -18,7 +18,7 @@ fn compileImages() !void {
         .{     "fire", .{ 8, 8 } },
         .{  "hp_full", .{ 6, 6 } },
         .{ "hp_empty", .{ 4, 6 } },
-        .{    "sword", .{ 8, 4 } },
+        .{    "sword", .{ 6, 4 } },
     };
 
     inline for (sprites) |sprite| {
@@ -54,7 +54,8 @@ pub fn build(b: *std.build.Builder) void {
     const mode = b.standardReleaseOptions();
 
     const exe = b.addExecutable("qove", "src/main.zig");
-    // exe.strip = true;
+    // exe.want_lto = true;
+    exe.strip = true;
     exe.setTarget(target);
     exe.setBuildMode(mode);
     exe.install();
