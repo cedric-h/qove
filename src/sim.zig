@@ -1,10 +1,11 @@
 const std = @import("std");
 
-const Vec3 = @import("./math.zig").Vec3;
-const vec3 = @import("./math.zig").vec3;
-const Quat = @import("./math.zig").Quat;
-const sin = @import("./math.zig").sin;
-const cos = @import("./math.zig").cos;
+const math = @import("./math.zig");
+const Vec3 = math.Vec3;
+const vec3 = math.vec3;
+const Quat = math.Quat;
+const sin =  math.sin;
+const cos =  math.cos;
 
 
 // for games, scancodes > virtual keycodes because they're 
@@ -26,7 +27,7 @@ var hp: usize = 3;
 const Img = *const [8*8][3]u8;
 
 var     fire = @ptrCast(Img, @embedFile("../assets/fire.bin"));
-var    sword = @ptrCast(Img, @embedFile("../assets/sword.bin"));
+var    staff = @ptrCast(Img, @embedFile("../assets/staff.bin"));
 var  hp_full = @ptrCast(Img, @embedFile("../assets/hp_full.bin"));
 var hp_empty = @ptrCast(Img, @embedFile("../assets/hp_empty.bin"));
 
@@ -87,6 +88,7 @@ const Fleck = struct {
         rgb: ?[3]u8 = null,
         quat: Quat = Quat.IDENTITY,
         fleckSize: f32 = 1,
+        tex: Fleck.Texture = .Solid,
     }) void {
         const hw = arg.size[0] * 0.5;
         const hh = arg.size[1] * 0.5;
@@ -98,7 +100,7 @@ const Fleck = struct {
             queue(.{
                 .pos = arg.pos.add(arg.quat.rot(vec3(x*hw, y*hh, 0))),
                 .rgb = arg.rgb orelse pixel,
-                .tex = .Solid,
+                .tex = arg.tex,
                 .size = arg.fleckSize,
             });
         }
@@ -223,46 +225,52 @@ pub const Pixels = struct {
 
 
 var ray: ?Ray = null;
+const Ent = struct {
+    pos : Vec3 = vec3(0, 0, 0),
+    quat : Quat = Quat.IDENTITY,
+    size : f32 = 0.3,
+    fn forward(e: Ent) Vec3 { return e.quat.rot(vec3(0, 0, -1)); }
+};
+var ent : ?Ent = .{ .pos = vec3(2, 0, -4) };
 pub fn draw(pix: Pixels) void {
     if (ray) |r| r.draw();
-
-    // var n: usize = 0;
-    // while (n < 3) : (n += 1) {
-    //     for (if (hp > n) hp_full else hp_empty) |p, i| {
-    //         const r: u32 = p[0];
-    //         const g: u32 = p[1];
-    //         const b: u32 = p[2];
-    //         if (r+g+b < 15) continue;
-    //         const rgb = (r << 16) | (g << 8) | (b << 0);
-
-    //         const S = 3;
-    //         const u = @intCast(u32, i % 8)*S + S + n*S*(1+8);
-    //         const v = @intCast(u32, i / 8)*S + S;
-    //         var q: usize = 0;
-    //         while (q < S*S) : (q += 1) {
-    //             data[(v+q%S) * row_pitch + (u+q/S)] = rgb;
-    //         }
-    //     }
-    // }
 
     const ticker = struct { var t: f32 = 0; };
     ticker.t += 0.1;
 
-    Fleck.img(.{
-        .pixels = sword,
-        .pos = vec3(0, 0, -1),
-        .size = .{ 0.3, 0.3 },
-        .quat = Quat.axisAngle(vec3(0,1,0), ticker.t/10)
-    });
+    if (ent) |*e| {
+        e.quat = Quat.axisAngle(vec3(0,1,0), ticker.t/10);
+        Fleck.img(.{
+            .pixels = staff,
+            .pos = e.pos,
+            .size = .{ e.size, e.size },
+            .quat = e.quat
+        });
+    }
 
     Fleck.applyCam();
     Fleck.img(.{
-        .pixels = sword,
+        .pixels = staff,
         .pos = vec3(0.36, -0.37, -0.5),
         .quat = Quat.axisAngle(vec3(0,1,0.2).norm(), -0.9 + 0.05*sin(ticker.t)),
         .fleckSize = 18,
         .size = .{ 0.34, 0.34 },
     });
+    var n: f32 = 0;
+    while (n < 3) : (n += 1) {
+        const size = 0.08;
+        const edge = 0.5 - size + size/2.0;
+        const full = @intToFloat(f32, hp) > n;
+        Fleck.img(.{
+            .pixels = if (full) hp_full else hp_empty,
+            .tex = if (full) .Solid else .Diamond,
+            .pos = vec3(n * size * 9/8 - edge, edge, -0.5),
+            .quat = Quat.axisAngle(vec3(0,1,0), ticker.t/10 + n*0.1),
+            .fleckSize = 6,
+            .size = .{ size, size },
+        });
+    }
+
     Fleck.render(pix);
 }
 
@@ -284,9 +292,23 @@ pub fn onMouseDown() void {
     begin = begin.add(cam.  up().mulf(0.24*0.5));
 
     var mid = cam.pos.add(cam.look().mulf(2.5));
+    var end = begin.lerp(mid, 2);
+
+    const norm = end.sub(begin).norm();
+
+    if (ent) |e| {
+        const d = e.pos.dot(e.forward().mulf(-1));
+        const qZ = -(d + e.forward().dot(begin)) / e.forward().dot(norm);
+        const hit = begin.add(norm.mulf(qZ));
+        if (hit.sub(e.pos).mag() < e.size/2) {
+            end = hit;
+            ent = null;
+        }
+    }
+    else ent = .{ .pos = vec3(2, 0, -4) };
 
     ray = .{ .begin = begin,
-             .end   = begin.lerp(mid, 2) };
+             .end   = end };
 }
 
 pub fn onMouseMove(x: f32, y: f32) void {
@@ -296,14 +318,50 @@ pub fn onMouseMove(x: f32, y: f32) void {
     cam.q = q_pitch.mul(cam.q.mul(q_yaw));
 }
 
-fn easeOutSine(t: f32) f32 {
-    return sin((t * std.math.pi) / 2);
-}
+const latch = struct {
+    var cast = vec3(0, 0, 0);
+    var start_pos = vec3(0, 0, 0);
+    var end_pos = vec3(0, 0, 0);
+
+    var until_land: u32 = 0;
+    var until_next: u32 = 0;
+};
 
 pub fn frame() void {
     cooldown += 0.1;
     if (cooldown < 0.8) {
-        onMouseMove(0, -10*easeOutSine(cooldown/0.8));
+        onMouseMove(0, -10*math.easeOutSine(cooldown/0.8));
+    }
+
+    // enemy/projectile behavior
+    latch.until_next -|= 1;
+    latch.until_land -|= 1;
+
+    const LAND_T = 70;
+
+    if (latch.until_next == 0) {
+        if (ent) |e| {
+            latch.start_pos = e.pos;
+            latch.end_pos = cam.pos;
+            latch.until_land = LAND_T;
+            latch.until_next = 200;
+        }
+    }
+
+    if (latch.until_land < LAND_T and latch.until_land != 0) {
+        const t = 1 - @intToFloat(f32, latch.until_land) / LAND_T;
+        latch.cast = latch.start_pos.lerp(latch.end_pos, t);
+        latch.cast.y = 0.3 * sin(t * std.math.pi);
+        Fleck.img(.{
+            .pos = latch.cast,
+            .size = .{ 0.1, 0.1 },
+            .quat = Quat.axisAngle(vec3(0, 1, 0), t * 20),
+            .pixels = fire,
+        });
+    }
+
+    if (latch.until_land == 1 and latch.cast.sub(cam.pos).mag() < 1) {
+        hp -= 1;
     }
 
     // controls

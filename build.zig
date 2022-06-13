@@ -19,10 +19,11 @@ fn compileImages() !void {
     var pixels = std.mem.zeroes([8*8][3]u8);
 
     const sprites = .{
-        // .{     "fire", .{ 8,  8 }, 0 },
-        // .{  "hp_full", .{ 6,  6 }, 0 },
-        // .{ "hp_empty", .{ 4,  6 }, 0 },
-        .{    "sword", .{ 5, 12 }, 1 },
+        .{     "fire", .{ 8,  8 }, 0 },
+        .{  "hp_full", .{ 6,  6 }, 0 },
+        .{ "hp_empty", .{ 4,  6 }, 0 },
+        // .{    "staff", .{ 6,  4 }, 0 },
+        .{    "staff", .{ 5, 12 }, 1 },
     };
 
     inline for (sprites) |sprite| {
@@ -36,9 +37,11 @@ fn compileImages() !void {
             for (pix[0..3]) |p, pi| {
                 var f = @intToFloat(f32, p) / qual;
                 if (sprite[2] == 0)
-                    f = std.math.pow(f32, f, img.gamma);
+                    f = std.math.pow(f32, f, 1/img.gamma);
                 f = @minimum(1, @maximum(0, f));
-                pixels[y*8 + x][pi] = @floatToInt(u8, f * 255);
+
+                const out = @floatToInt(u8, f * 255);
+                pixels[y*8 + x][pi] = if (pix[3] > 0) out else 0;
             }
         }
 

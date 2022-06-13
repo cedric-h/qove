@@ -16,9 +16,9 @@ THURSDAY:
 - [x] visualize hp
 
 FRIDAY:
-- [ ] hitbox to shoot
-- [ ] visualize gun + bullet
-- [ ] shooter dies
+- [x] hitbox to shoot
+- [x] visualize gun + bullet
+- [k] shooter dies
 
 SATURDAY:
 - [ ] plateau (green)

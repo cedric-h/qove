@@ -1,3 +1,5 @@
+const std = @import("std");
+
 // never do this in real software lol
 // https://www.intel.com/content/www/us/en/developer/articles/technical/the-difference-between-x87-instructions-and-mathematical-functions.html
 pub fn cos(x: f32) f32 {
@@ -11,6 +13,10 @@ pub fn sin(x: f32) f32 {
         : [ret] "={st}" (-> f64)
         : [x] "0" (x)
     ));
+}
+
+pub fn easeOutSine(t: f32) f32 {
+    return sin((t * std.math.pi) / 2);
 }
 
 pub const Vec3 = struct {
