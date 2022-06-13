@@ -25,10 +25,10 @@ var hp: usize = 3;
 
 const Img = *const [8*8][3]u8;
 
-var     fire = @ptrCast(Img, @embedFile("../fire.bin"));
-var    sword = @ptrCast(Img, @embedFile("../sword.bin"));
-var  hp_full = @ptrCast(Img, @embedFile("../hp_full.bin"));
-var hp_empty = @ptrCast(Img, @embedFile("../hp_empty.bin"));
+var     fire = @ptrCast(Img, @embedFile("../assets/fire.bin"));
+var    sword = @ptrCast(Img, @embedFile("../assets/sword.bin"));
+var  hp_full = @ptrCast(Img, @embedFile("../assets/hp_full.bin"));
+var hp_empty = @ptrCast(Img, @embedFile("../assets/hp_empty.bin"));
 
 // Draw flecks from begin -> end, animate as a function of T
 const Ray = struct {
@@ -84,6 +84,7 @@ const Fleck = struct {
         pixels: Img,
         pos: Vec3,
         size: [2]f32,
+        rgb: ?[3]u8 = null,
         quat: Quat = Quat.IDENTITY,
         fleckSize: f32 = 1,
     }) void {
@@ -96,7 +97,7 @@ const Fleck = struct {
             const y = 1 - @intToFloat(f32, i / 8) / 8 * 2;
             queue(.{
                 .pos = arg.pos.add(arg.quat.rot(vec3(x*hw, y*hh, 0))),
-                .rgb = pixel,
+                .rgb = arg.rgb orelse pixel,
                 .tex = .Solid,
                 .size = arg.fleckSize,
             });
@@ -179,8 +180,8 @@ pub const Pixels = struct {
         pix.fill(
             f, 
             @floatToInt(isize, 0.5 * f.size),
-            @floatToInt(isize,           widthf *      point.x),
-            @floatToInt(isize, aspect * heightf * (1 - point.y)),
+            @floatToInt(isize, widthf / aspect * point.x),
+            @floatToInt(isize,          heightf * (1 - point.y)),
         );
     }
 
@@ -245,33 +246,24 @@ pub fn draw(pix: Pixels) void {
     // }
 
     const ticker = struct { var t: f32 = 0; };
-    ticker.t += 0.01;
+    ticker.t += 0.1;
 
     Fleck.img(.{
         .pixels = sword,
         .pos = vec3(0, 0, -1),
         .size = .{ 0.3, 0.3 },
-        .quat = Quat.axisAngle(vec3(0,1,0), ticker.t)
+        .quat = Quat.axisAngle(vec3(0,1,0), ticker.t/10)
     });
 
     Fleck.applyCam();
     Fleck.img(.{
         .pixels = sword,
-        .pos = vec3(0.34, -0.31, -0.5),
-        .quat = Quat.axisAngle(vec3(0,1,0.2).norm(), -0.9),
-        .fleckSize = 15,
-        .size = .{ 0.24, 0.24 },
+        .pos = vec3(0.36, -0.37, -0.5),
+        .quat = Quat.axisAngle(vec3(0,1,0.2).norm(), -0.9 + 0.05*sin(ticker.t)),
+        .fleckSize = 18,
+        .size = .{ 0.34, 0.34 },
     });
     Fleck.render(pix);
-
-    // pix.img(
-    //     sword,
-    //     cam.pos
-    //         .add(cam.look())
-    //         .add(cam.side().mulf(0.2))
-    //         .add(cam.  up().mulf(0.2)),
-    //     cam.q
-    // );
 }
 
 pub const cam = struct {
@@ -282,11 +274,14 @@ pub const cam = struct {
     fn up() Vec3 { return cam.look().cross(cam.side()); }
 };
 
+var cooldown: f32 = 100;
 pub fn onMouseDown() void {
+    cooldown = 0;
+
     // start
-    var begin = cam.pos.add(cam.look().mulf(0.2));
-    begin = begin.add(cam.side().mulf(0.28));
-    begin = begin.add(cam.  up().mulf(0.22));
+    var begin = cam.pos.add(cam.look().mulf(0.5));
+    begin = begin.add(cam.side().mulf(0.28*0.5));
+    begin = begin.add(cam.  up().mulf(0.24*0.5));
 
     var mid = cam.pos.add(cam.look().mulf(2.5));
 
@@ -301,7 +296,15 @@ pub fn onMouseMove(x: f32, y: f32) void {
     cam.q = q_pitch.mul(cam.q.mul(q_yaw));
 }
 
+fn easeOutSine(t: f32) f32 {
+    return sin((t * std.math.pi) / 2);
+}
+
 pub fn frame() void {
+    cooldown += 0.1;
+    if (cooldown < 0.8) {
+        onMouseMove(0, -10*easeOutSine(cooldown/0.8));
+    }
 
     // controls
     var fwd = cam.look(); fwd.y = 0; fwd = fwd.norm();

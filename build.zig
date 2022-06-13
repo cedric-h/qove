@@ -6,35 +6,44 @@ fn compileImages() !void {
     defer _ = gpa.deinit();
     const ally = gpa.allocator();
 
-    const ss = try std.fs.cwd().openFile("colored_tilemap_packed.png", .{});
-    const img = try png.Image.read(ally, ss.reader());
-    defer img.deinit(ally);
+    const ss0 = try std.fs.cwd().openFile("colored_tilemap_packed.png", .{});
+    const img0 = try png.Image.read(ally, ss0.reader());
+    defer img0.deinit(ally);
 
-    std.debug.print("{}\n", .{img.gamma});
+    const ss1 = try std.fs.cwd().openFile("glyphs.png", .{});
+    const img1 = try png.Image.read(ally, ss1.reader());
+    defer img1.deinit(ally);
 
+    const imgs = [2]png.Image{ img0, img1 };
+    const quality = [2]f32   { 1<<16, 1<<16 };
     var pixels = std.mem.zeroes([8*8][3]u8);
 
     const sprites = .{
-        .{     "fire", .{ 8, 8 } },
-        .{  "hp_full", .{ 6, 6 } },
-        .{ "hp_empty", .{ 4, 6 } },
-        .{    "sword", .{ 6, 4 } },
+        // .{     "fire", .{ 8,  8 }, 0 },
+        // .{  "hp_full", .{ 6,  6 }, 0 },
+        // .{ "hp_empty", .{ 4,  6 }, 0 },
+        .{    "sword", .{ 5, 12 }, 1 },
     };
 
     inline for (sprites) |sprite| {
+        const img = imgs[sprite[2]];
+        const qual = quality[sprite[2]];
+
         for (pixels) |_, i| {
             const x = @intCast(u32, i % 8);
             const y = @intCast(u32, i / 8);
             var pix = img.pix(sprite[1][0]*8 + x, sprite[1][1]*8+y);
             for (pix[0..3]) |p, pi| {
-                var f = @intToFloat(f32, p) / (1 << 16);
-                f = std.math.pow(f32, f, 1/img.gamma);
+                var f = @intToFloat(f32, p) / qual;
+                if (sprite[2] == 0)
+                    f = std.math.pow(f32, f, img.gamma);
                 f = @minimum(1, @maximum(0, f));
                 pixels[y*8 + x][pi] = @floatToInt(u8, f * 255);
             }
         }
 
-        const file = try std.fs.cwd().createFile(sprite[0] ++ ".bin", .{});
+        const path = "assets/" ++ sprite[0] ++ ".bin";
+        const file = try std.fs.cwd().createFile(path, .{});
         try file.writeAll(std.mem.sliceAsBytes(pixels[0..]));
     }
 }
