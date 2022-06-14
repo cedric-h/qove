@@ -22,8 +22,9 @@ fn compileImages() !void {
         .{     "fire", .{ 8,  8 }, 0 },
         .{  "hp_full", .{ 6,  6 }, 0 },
         .{ "hp_empty", .{ 4,  6 }, 0 },
-        // .{    "staff", .{ 6,  4 }, 0 },
         .{    "staff", .{ 5, 12 }, 1 },
+        .{      "oak", .{ 5,  5 }, 0 },
+        .{     "pine", .{ 4,  5 }, 0 },
     };
 
     inline for (sprites) |sprite| {

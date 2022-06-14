@@ -30,6 +30,8 @@ var     fire = @ptrCast(Img, @embedFile("../assets/fire.bin"));
 var    staff = @ptrCast(Img, @embedFile("../assets/staff.bin"));
 var  hp_full = @ptrCast(Img, @embedFile("../assets/hp_full.bin"));
 var hp_empty = @ptrCast(Img, @embedFile("../assets/hp_empty.bin"));
+var      oak = @ptrCast(Img, @embedFile("../assets/oak.bin"));
+var     pine = @ptrCast(Img, @embedFile("../assets/pine.bin"));
 
 // Draw flecks from begin -> end, animate as a function of T
 const Ray = struct {
@@ -85,24 +87,68 @@ const Fleck = struct {
         pixels: Img,
         pos: Vec3,
         size: [2]f32,
-        rgb: ?[3]u8 = null,
         quat: Quat = Quat.IDENTITY,
+        center : bool = false, // centers on Y axis
         fleckSize: f32 = 1,
         tex: Fleck.Texture = .Solid,
     }) void {
-        const hw = arg.size[0] * 0.5;
-        const hh = arg.size[1] * 0.5;
+        const hw = arg.size[0];
+        const hh = arg.size[1];
         for (arg.pixels) |pixel, i| {
             if (pixel[0]+pixel[1]+pixel[2] < 15) continue;
 
-            const x = 1 - @intToFloat(f32, i % 8) / 8 * 2;
-            const y = 1 - @intToFloat(f32, i / 8) / 8 * 2;
+            var x = 1 - @intToFloat(f32, i % 8) / 8 - 0.5;
+            var y = 1 - @intToFloat(f32, i / 8) / 8;
+            if (arg.center) y -= 0.5;
             queue(.{
                 .pos = arg.pos.add(arg.quat.rot(vec3(x*hw, y*hh, 0))),
-                .rgb = arg.rgb orelse pixel,
+                .rgb = pixel,
                 .tex = arg.tex,
                 .size = arg.fleckSize,
             });
+        }
+    }
+
+    fn spin(arg: struct {
+        pixels: Img,
+        pos: Vec3,
+        size: [2]f32,
+        fleckSize: f32 = 1,
+    }) void {
+        const hw = arg.size[0];
+        const hh = arg.size[1];
+        for (arg.pixels) |pixel, i| {
+            if (pixel[0]+pixel[1]+pixel[2] < 15) continue;
+
+            if (i != 0 and arg.pixels[i-1][0] +
+                           arg.pixels[i-1][1] +
+                           arg.pixels[i-1][2] > 15)
+                continue;
+
+            const px = @intToFloat(f32, i % 8);
+            const x = 1 -                      px / 8 - 0.5;
+            const y = 1 - @intToFloat(f32, i / 8) / 8;
+
+            const max = 4 * (2 + 3*(4 - px));
+            var n: f32 = 0;
+            while (n < max) : (n += 1) {
+                const t = n/max;
+                const quat = Quat.axisAngle(vec3(0, 1, 0), t * std.math.tau);
+
+                var rgb = pixel;
+                var r = @intToFloat(f32, rgb[0]);
+                var g = @intToFloat(f32, rgb[1]);
+                var b = @intToFloat(f32, rgb[2]);
+                rgb[0] = @floatToInt(u8, r*(1 + 0.3*sin(t*20+0)));
+                rgb[1] = @floatToInt(u8, g*(1 + 0.3*sin(t*20+5)));
+                rgb[2] = @floatToInt(u8, b*(1 + 0.3*sin(t*20-5)));
+                queue(.{
+                    .pos = arg.pos.add(quat.rot(vec3(x*hw, (t + y)*hh, 0))),
+                    .rgb = rgb,
+                    .tex = .Solid,
+                    .size = arg.fleckSize,
+                });
+            }
         }
     }
 
@@ -231,7 +277,7 @@ const Ent = struct {
     size : f32 = 0.3,
     fn forward(e: Ent) Vec3 { return e.quat.rot(vec3(0, 0, -1)); }
 };
-var ent : ?Ent = .{ .pos = vec3(2, 0, -4) };
+var ent : ?Ent = .{ .pos = vec3(1, 0, -1) };
 pub fn draw(pix: Pixels) void {
     if (ray) |r| r.draw();
 
@@ -248,9 +294,30 @@ pub fn draw(pix: Pixels) void {
         });
     }
 
+    Fleck.spin(.{
+        .pixels = pine,
+        .pos = vec3(1, 0, 1),
+        .size = .{ 2, 3.5 },
+        .fleckSize = 4,
+    });
+    Fleck.spin(.{
+        .pixels = oak,
+        .pos = vec3(3, 0, 1.5),
+        .size = .{ 2, 3 },
+        .fleckSize = 4,
+    });
+    var qqq = cam.pos.add(cam.look());
+    qqq.y = 0;
+    Fleck.queue(.{
+        .pos = qqq,
+        .rgb = .{ 255, 0, 255 },
+        .tex = .Solid
+    });
+
     Fleck.applyCam();
     Fleck.img(.{
         .pixels = staff,
+        .center = true,
         .pos = vec3(0.36, -0.37, -0.5),
         .quat = Quat.axisAngle(vec3(0,1,0.2).norm(), -0.9 + 0.05*sin(ticker.t)),
         .fleckSize = 18,
@@ -266,6 +333,7 @@ pub fn draw(pix: Pixels) void {
             .tex = if (full) .Solid else .Diamond,
             .pos = vec3(n * size * 9/8 - edge, edge, -0.5),
             .quat = Quat.axisAngle(vec3(0,1,0), ticker.t/10 + n*0.1),
+            .center = true,
             .fleckSize = 6,
             .size = .{ size, size },
         });
@@ -275,7 +343,7 @@ pub fn draw(pix: Pixels) void {
 }
 
 pub const cam = struct {
-    var pos = vec3(0, 0, 0);
+    var pos = vec3(0, 1, 0);
     var q = Quat.IDENTITY;
     fn look() Vec3 { return q.rot(vec3(0, 0, -1)); }
     fn side() Vec3 { return cam.look().cross(vec3(0, 1, 0)); }
@@ -334,8 +402,10 @@ pub fn frame() void {
     }
 
     // enemy/projectile behavior
-    latch.until_next -|= 1;
-    latch.until_land -|= 1;
+    if (ray != null) {
+        latch.until_next -|= 1;
+        latch.until_land -|= 1;
+    }
 
     const LAND_T = 70;
 

@@ -10,39 +10,32 @@ you in a clifftop village inhabited by well-meaning -- if somewhat clueless -- c
 
 # DAYS UNTIL TALK
 
-THURSDAY:
+THURSDAY, FRIDAY:
 - [x] textures
 - [x] projectile to dodge
 - [x] visualize hp
 
-FRIDAY:
+SATURDAY, SUNDAY:
 - [x] hitbox to shoot
 - [x] visualize gun + bullet
-- [k] shooter dies
+- [x] shooter dies
 
-SATURDAY:
+MONDAY, TUESDAY:
 - [ ] plateau (green)
 - [ ] cliffsides (grey?)
 - [ ] npc hello world (text)
 
-SUNDAY:
+WEDNESDAY, THURSDAY:
 - [ ] cave
 - [ ] first quest (village -> cave, kill 3, go back)
 
-MONDAY:
+FRIDAY, SATURDAY:
 - [ ] web builds
-
-TUESDAY:
 - [ ] elevator
 
-WEDNESDAY:
+SUNDAY, MONDAY:
 - [ ] ruins
-
-THURSDAY:
 - [ ] bridge
-
-FRIDAY:
-- [ ] give talk
 
 
 # engine goodies
