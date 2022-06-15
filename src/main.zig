@@ -162,6 +162,8 @@ pub export fn wWinMainCRTStartup() callconv(windows.WINAPI) noreturn {
             null, 0, d3d11.D3D11_SDK_VERSION,
             &desc, &swap_chain, &device, null, &context);
 
+    sim.init();
+
     while (true) {
         var msg: usr.MSG = undefined;
         while (usr.PeekMessageA(&msg, null, 0, 0, usr.PM_REMOVE) > 0) {

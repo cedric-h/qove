@@ -6,6 +6,19 @@ const vec3 = math.vec3;
 const Quat = math.Quat;
 const sin =  math.sin;
 const cos =  math.cos;
+fn sign(f: f32) f32 {
+    if (f < 0) return -1;
+    if (f > 0) return 1;
+    return 0;
+}
+
+fn round(f: f32) f32 {
+    return @intToFloat(f32, @floatToInt(isize, f + 0.5*sign(f)));
+}
+
+fn fabs(f: f32) f32 {
+    return f * sign(f);
+}
 
 
 // for games, scancodes > virtual keycodes because they're 
@@ -283,19 +296,27 @@ pub const Pixels = struct {
     }
 };
 
-fn sign(f: f32) f32 {
-    if (f < 0) return -1;
-    if (f > 0) return 1;
-    return 0;
-}
+pub const Circle = struct {
+    scale: f32,
+    pos: Vec3,
 
-fn round(f: f32) f32 {
-    return @intToFloat(f32, @floatToInt(isize, f + 0.5*sign(f)));
-}
+    const mapRaw = @embedFile("../circle.bytes");
+    var map : [mapRaw.len / 8]Circle = undefined;
+    
+    // packed also guarantees field ordering, which you need here
+    const PackedCircle = packed struct { scale: f32, pos: [2]f32 };
 
-fn fabs(f: f32) f32 {
-    return f * sign(f);
-}
+    fn unpack(pc: PackedCircle) Circle {
+        return .{ .scale = pc.scale * 10,
+                  .pos = vec3(pc.pos[0], 0.0, pc.pos[1]).mulf(10) };
+    }
+
+    fn readMap() void {
+        const packt = std.mem.bytesAsSlice(PackedCircle, mapRaw);
+        for (packt) |p, i| map[i] = unpack(p);
+    }
+};
+
 
 fn cubeRound(frac: Vec3) Vec3 {
     var q = round(frac.x);
@@ -340,6 +361,13 @@ fn grassHex(center_h: Vec3) void {
             const pos = vec3(cos(r), 0, sin(r)).mulf(o/10).add(center);
             var fadeout = 1-(@maximum(pos.sub(cam.pos).mag(), 7)-7)/3;
             if (center_h.sub(worldToHex(pos)).mag() > 0.1) continue;
+
+            var within = false;
+            for (Circle.map) |c| {
+                within = within or c.pos.sub(pos).mag() < c.scale;
+            }
+            if (!within) continue;
+
             Fleck.queue(.{
                 .pos = pos,
                 .rgb = .{
@@ -565,4 +593,8 @@ pub fn frame() void {
     const mvmag = mv.mag();
     if (mvmag > 0)
         cam.pos = cam.pos.add(mv.mulf(0.03 / mvmag));
+}
+
+pub fn init() void {
+    Circle.readMap();
 }
