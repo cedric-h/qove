@@ -19,12 +19,13 @@ fn compileImages() !void {
     var pixels = std.mem.zeroes([8*8][3]u8);
 
     const sprites = .{
-        .{     "fire", .{ 8,  8 }, 0 },
-        .{  "hp_full", .{ 6,  6 }, 0 },
-        .{ "hp_empty", .{ 4,  6 }, 0 },
-        .{    "staff", .{ 5, 12 }, 1 },
-        .{      "oak", .{ 5,  5 }, 0 },
-        .{     "pine", .{ 4,  5 }, 0 },
+        .{   "kraken", .{ 11,  1 }, 0 },
+        .{     "fire", .{  8,  8 }, 0 },
+        .{  "hp_full", .{  6,  6 }, 0 },
+        .{ "hp_empty", .{  4,  6 }, 0 },
+        .{    "staff", .{  5, 12 }, 1 },
+        .{      "oak", .{  5,  5 }, 0 },
+        .{     "pine", .{  4,  5 }, 0 },
     };
 
     inline for (sprites) |sprite| {
