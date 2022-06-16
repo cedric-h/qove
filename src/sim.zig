@@ -100,7 +100,7 @@ const Fleck = struct {
         Diamond,
     };
 
-    var pending: [1 << 13]@This() = undefined;
+    var pending: [1 << 14]@This() = undefined;
     var count: usize = 0;
 
     fn queue(f: Fleck) void {
@@ -300,7 +300,7 @@ pub const Circle = struct {
     scale: f32,
     pos: Vec3,
 
-    const mapRaw = @embedFile("../circle.bytes");
+    const mapRaw = @embedFile("../assets/circle.bytes");
     var map : [mapRaw.len / 8]Circle = undefined;
     
     // packed also guarantees field ordering, which you need here
@@ -313,6 +313,25 @@ pub const Circle = struct {
 
     fn readMap() void {
         const packt = std.mem.bytesAsSlice(PackedCircle, mapRaw);
+        for (packt) |p, i| map[i] = unpack(p);
+    }
+};
+
+pub const Tree = struct {
+    pos: Vec3,
+
+    const mapRaw = @embedFile("../assets/tree.bytes");
+    var map : [mapRaw.len / 8]Tree = undefined;
+    
+    // packed also guarantees field ordering, which you need here
+    const PackedTree = packed struct { pos: [2]f32 };
+
+    fn unpack(pc: PackedTree) Tree {
+        return .{ .pos = vec3(pc.pos[0], 0.0, pc.pos[1]).mulf(10) };
+    }
+
+    fn readMap() void {
+        const packt = std.mem.bytesAsSlice(PackedTree, mapRaw);
         for (packt) |p, i| map[i] = unpack(p);
     }
 };
@@ -430,19 +449,43 @@ pub fn draw(pix: Pixels) void {
         });
     }
 
-    Fleck.spin(.{
-        .pixels = pine,
-        .pos = vec3(1, -0.3, 1),
-        .size = .{ 2, 3.5 },
-        .fleckSize = 4,
-    });
-    Fleck.spin(.{
-        .pixels = oak,
-        .pos = vec3(3, -0.3, 1.5),
-        .size = .{ 2, 3 },
-        .quat = Quat.axisAngle(vec3(0,1,0), 1.8),
-        .fleckSize = 4,
-    });
+    for (Circle.map) |c| {
+        var dist = c.scale * std.math.tau;
+        while (dist > 1) : (dist -= 1) {
+            const ct = dist / (c.scale * std.math.tau);
+            const t = dist / c.scale;
+            const pos = c.pos.add(vec3(cos(t), 0, sin(t)).mulf(c.scale));
+
+            var within = false;
+            for (Circle.map) |cc| {
+                within = within or cc.pos.sub(pos).mag() < (cc.scale - 0.2);
+            }
+            if (within) continue;
+
+            Fleck.queue(.{
+                .pos = pos,
+                .rgb = .{
+                    @floatToInt(u8, 20  * (1 + 0.3*sin(ct*20+0))),
+                    @floatToInt(u8, 100 * (1 + 0.3*sin(ct*20+5))),
+                    @floatToInt(u8, 40  * (1 + 0.3*sin(ct*20-5))),
+                },
+                .tex = .Solid,
+                .size = 5,
+            });
+        }
+    }
+
+    for (Tree.map) |t, i|
+        Fleck.spin(.{
+            .pixels = oak,
+            .pos = t.pos.add(vec3(0, -0.3, 0)),
+            .size = .{ 2, 3 },
+            .quat = Quat.axisAngle(
+                vec3(0,1,0),
+                @intToFloat(f32, i) / @intToFloat(f32, Tree.map.len) * std.math.tau
+            ),
+            .fleckSize = 4,
+        });
 
     ground();
 
@@ -597,4 +640,5 @@ pub fn frame() void {
 
 pub fn init() void {
     Circle.readMap();
+    Tree.readMap();
 }

@@ -4,14 +4,22 @@ import bmesh
 import struct
 D = bpy.data
 
+
 out = bytearray()
+for o in D.objects:
+    if o.name.startswith("Circle"):
+        out += struct.pack('f', o.scale.x)
+        out += struct.pack('f', o.location[0])
+        out += struct.pack('f', o.location[1])
+with open('assets/circle.bytes', 'wb') as f:
+    f.write(out)
 
-circles = [o for o in D.objects if o.name.startswith("Circle")]
+
+out = bytearray()
 # out += struct.pack('!L', len(circles))
-for c in circles:
-    out += struct.pack('f', c.scale.x)
-    out += struct.pack('f', c.location[0])
-    out += struct.pack('f', c.location[1])
-
-with open('circle.bytes', 'wb') as f:
+for o in D.objects:
+    if o.name.startswith("Tree"):
+        out += struct.pack('f', o.location[0])
+        out += struct.pack('f', o.location[1])
+with open('assets/tree.bytes', 'wb') as f:
     f.write(out)

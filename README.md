@@ -21,7 +21,7 @@ SATURDAY, SUNDAY:
 - [x] shooter dies
 
 MONDAY, TUESDAY:
-- [ ] plateau (green)
+- [x] plateau (green)
 - [ ] cliffsides (grey?)
 - [ ] npc hello world (text)
 
