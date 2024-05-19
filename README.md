@@ -1,3 +1,8 @@
+what i made
+
+![zig](https://github.com/cedric-h/qove/assets/25539554/76bb1abe-e344-4639-99de-1ec4485de6d2)
+
+# goal
 
 Qove is an endearing, light-hearted retro RPG/FPS.
 
