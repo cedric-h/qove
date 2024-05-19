@@ -1,6 +1,6 @@
 what i made
 
-<img width="400" alt="screenshot" src="https://github.com/cedric-h/qove/assets/25539554/76bb1abe-e344-4639-99de-1ec4485de6d2">
+<img width="200" alt="screenshot" src="https://github.com/cedric-h/qove/assets/25539554/76bb1abe-e344-4639-99de-1ec4485de6d2">
 
 # goal
 
